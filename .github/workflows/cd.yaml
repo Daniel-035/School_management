@@ -24,13 +24,13 @@ jobs:
 
       - name: Install & build shared-types
         run: |
-          npm ci
+          npm install
           npm run build
         working-directory: packages/shared-types
 
       # ── Admin Panel ───────────────────────────────────────────────────────
       - name: Install admin panel dependencies
-        run: npm ci
+        run: npm install
         working-directory: admin_panel
 
       - name: Build admin panel
@@ -41,11 +41,11 @@ jobs:
 
       # ── Cloud Functions ───────────────────────────────────────────────────
       - name: Install backend dependencies
-        run: npm ci
+        run: npm install
         working-directory: backend
 
       - name: Install functions dependencies
-        run: npm ci
+        run: npm install
         working-directory: functions
 
       - name: Build Cloud Functions
