@@ -1,0 +1,45 @@
+substitutions:
+  _REGION: asia-south1
+  _REPOSITORY: educonnect
+  _SERVICE: school-api
+  _IMAGE_TAG: manual
+  _RUNTIME_SERVICE_ACCOUNT: school-api@${PROJECT_ID}.iam.gserviceaccount.com
+  _STORAGE_BUCKET: ${PROJECT_ID}.appspot.com
+  _CORS_ORIGINS: https://admin.example.com
+  _ADMIN_EMAIL: admin@example.com
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file
+      - backend/Dockerfile
+      - --tag
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${_IMAGE_TAG}
+      - backend
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${_IMAGE_TAG}
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${_IMAGE_TAG}
+      - --region=${_REGION}
+      - --platform=managed
+      - --service-account=${_RUNTIME_SERVICE_ACCOUNT}
+      - --allow-unauthenticated
+      - --set-env-vars=^@^NODE_ENV=production@FIRESTORE_PROJECT_ID=${PROJECT_ID}@FIREBASE_STORAGE_BUCKET=${_STORAGE_BUCKET}@CORS_ORIGINS=${_CORS_ORIGINS}@ADMIN_EMAIL=${_ADMIN_EMAIL}@SEED_DEMO_DATA=false@REQUIRE_HTTPS=true
+      - --set-secrets=JWT_SECRET=educonnect-jwt-secret:latest,ADMIN_PASSWORD=educonnect-admin-password:latest
+
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${_IMAGE_TAG}
+
+options:
+  dynamicSubstitutions: true
+  logging: CLOUD_LOGGING_ONLY

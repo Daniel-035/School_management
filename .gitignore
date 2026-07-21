@@ -1,0 +1,40 @@
+# Local environment configuration. Committed templates are explicitly allowed.
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.local
+
+# Firebase client configuration generated for a specific project/environment.
+**/google-services.json
+**/GoogleService-Info.plist
+**/firebase_options.dart
+
+# Private credentials and signing material.
+*service-account*.json
+*serviceAccount*.json
+firebase-adminsdk-*.json
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+key.properties
+
+# Dependency, build, test, and generated output shared by all projects.
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/build/
+**/.dart_tool/
+**/.next/
+**/.nuxt/
+**/coverage/
+**/.nyc_output/
+*.log
+
+# Local operating-system and editor state.
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

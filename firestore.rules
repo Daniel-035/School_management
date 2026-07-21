@@ -1,0 +1,136 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return signedIn() && request.auth.token.role is string ? request.auth.token.role : '';
+    }
+
+    function isAdmin() {
+      return role() == 'admin';
+    }
+
+    function isStaff() {
+      return role() == 'staff';
+    }
+
+    function isParent() {
+      return role() == 'parent';
+    }
+
+    function isSelf(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function parentOwnsStudent(studentId) {
+      return isParent()
+        && request.auth.uid in get(/databases/$(database)/documents/students/$(studentId)).data.parentIds;
+    }
+
+    function parentOwnsThread() {
+      return isParent() && resource.data.parentId == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow read: if isAdmin() || isSelf(userId);
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /students/{studentId} {
+      allow read: if isAdmin() || isStaff() || (isParent() && request.auth.uid in resource.data.parentIds);
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /classes/{classId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /subjects/{subjectId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /attendance/{recordId} {
+      allow read: if isAdmin() || isStaff() || parentOwnsStudent(resource.data.studentId);
+      allow create, update: if isAdmin() || isStaff();
+      allow delete: if isAdmin();
+    }
+
+    match /leaveRequests/{requestId} {
+      allow read: if isAdmin() || isStaff() || (isParent() && resource.data.parentId == request.auth.uid);
+      allow create: if isParent() && request.resource.data.parentId == request.auth.uid;
+      allow update: if isAdmin() || isStaff();
+      allow delete: if isAdmin();
+    }
+
+    match /homework/{homeworkId} {
+      allow read: if signedIn();
+      allow create, update: if isAdmin() || isStaff();
+      allow delete: if isAdmin();
+    }
+
+    match /exams/{examId} {
+      allow read: if signedIn();
+      allow create, update: if isAdmin() || isStaff();
+      allow delete: if isAdmin();
+    }
+
+    match /grades/{gradeId} {
+      allow read: if isAdmin() || isStaff() || parentOwnsStudent(resource.data.studentId);
+      allow create, update: if isAdmin() || isStaff();
+      allow delete: if isAdmin();
+    }
+
+    match /feeStructures/{structureId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /feePayments/{paymentId} {
+      allow read: if isAdmin() || parentOwnsStudent(resource.data.studentId);
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if signedIn();
+      allow create, update: if isAdmin() || isStaff();
+      allow delete: if isAdmin();
+    }
+
+    match /messageThreads/{threadId} {
+      allow read: if isAdmin() || isStaff() || parentOwnsThread();
+      allow create, update: if isAdmin() || isStaff();
+      allow delete: if isAdmin();
+    }
+
+    match /chatMessages/{messageId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.senderId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    match /events/{eventId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /devices/{deviceId} {
+      allow read, write, delete: if signedIn() && request.resource.data.userId == request.auth.uid;
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
