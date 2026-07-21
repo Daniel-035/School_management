@@ -12,6 +12,12 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    proxy: {
+      "/api": {
+        target: "https://school-management-74ecc.web.app",
+        changeOrigin: true,
+      },
+    },
   },
   test: {
     environment: "jsdom",
