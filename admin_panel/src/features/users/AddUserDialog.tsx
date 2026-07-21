@@ -102,14 +102,15 @@ export function AddUserDialog({ open, onOpenChange, kind, editing, onSaved, pare
     setPhotoPreview(null);
     setPhotoPath(undefined);
     if (editing) {
+      const ed = editing as unknown as Record<string, unknown>;
       const common = {
-        firstName: "firstName" in editing ? (editing as any).firstName as string ?? "" : editing.name.split(" ")[0] ?? "",
-        lastName: "lastName" in editing ? (editing as any).lastName as string ?? "" : editing.name.split(" ").slice(1).join(" ") ?? "",
+        firstName: "firstName" in editing ? (ed.firstName as string ?? "") : editing.name.split(" ")[0] ?? "",
+        lastName: "lastName" in editing ? (ed.lastName as string ?? "") : editing.name.split(" ").slice(1).join(" ") ?? "",
         email: "email" in editing ? (editing as User).email ?? "" : "",
-        phone: (editing as any).phone as string ?? "",
-        address: (editing as any).address as string ?? "",
-        dateOfBirth: (editing as any).dateOfBirth as string ?? "",
-        gender: (editing as any).gender as "male" | "female" | "other" | undefined,
+        phone: (ed.phone as string ?? ""),
+        address: (ed.address as string ?? ""),
+        dateOfBirth: (ed.dateOfBirth as string ?? ""),
+        gender: (ed.gender as "male" | "female" | "other" | undefined),
       };
       if (isStudent && "classSectionId" in editing) {
         const s = editing as Student;

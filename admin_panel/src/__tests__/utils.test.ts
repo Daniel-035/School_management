@@ -11,6 +11,7 @@ describe("admin formatting utilities", () => {
   });
 
   it("merges tailwind class conflicts", () => {
-    expect(cn("px-2", "px-4", false && "hidden")).toBe("px-4");
+    const isHidden = false;
+    expect(cn("px-2", "px-4", isHidden && "hidden")).toBe("px-4");
   });
 });

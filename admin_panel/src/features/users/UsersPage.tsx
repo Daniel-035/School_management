@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { ReactNode, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -298,7 +298,8 @@ export function UsersPage() {
     </Dialog>
   );
 
-  const renderUserFormDialog = (opts: { open: boolean; onOpenChange: (v: boolean) => void; editing: User | null; title: string; description: string; form: any; onSubmit: any; extraFields?: React.ReactNode }) => (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const renderUserFormDialog = (opts: { open: boolean; onOpenChange: (v: boolean) => void; editing: User | null; title: string; description: string; form: any; onSubmit: any; extraFields?: ReactNode }) => (
     <Dialog open={opts.open} onOpenChange={opts.onOpenChange}>
       <DialogContent>
         <form onSubmit={opts.onSubmit} className="space-y-4" noValidate>
