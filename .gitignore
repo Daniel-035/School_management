@@ -26,7 +26,7 @@ key.properties
 **/dist/
 **/dist-ssr/
 **/build/
-**/lib/
+functions/lib/
 backend/src/**/*.js
 backend/src/**/*.js.map
 **/.dart_tool/
