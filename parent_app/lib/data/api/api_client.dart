@@ -1,11 +1,10 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show Platform, SocketException;
-
-import 'package:flutter/foundation.dart';
+import 'dart:typed_data';
+import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 
 class ApiException implements Exception {
   final int? statusCode;
@@ -17,22 +16,153 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
-class ApiClient {
-  ApiClient({String? baseUrl, http.Client? httpClient})
-      : _baseUrl = baseUrl ?? defaultBaseUrl,
-        _http = httpClient ?? http.Client();
+class HttpClientAdapterWrapper implements HttpClientAdapter {
+  final http.Client client;
+  HttpClientAdapterWrapper(this.client);
 
-  static const String defaultBaseUrl = 'http://localhost:8080/api';
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestBody,
+    Future<void>? cancelFuture,
+  ) async {
+    final List<int> bodyBytes = [];
+    if (requestBody != null) {
+      await for (var chunk in requestBody) {
+        bodyBytes.addAll(chunk);
+      }
+    }
+
+    final headers = <String, String>{};
+    options.headers.forEach((key, value) {
+      headers[key] = value.toString();
+    });
+
+    final method = options.method;
+    final uri = options.uri;
+
+    final request = http.Request(method, uri);
+    request.headers.addAll(headers);
+    request.bodyBytes = Uint8List.fromList(bodyBytes);
+
+    final response = await client.send(request);
+
+    final responseHeaders = <String, List<String>>{};
+    response.headers.forEach((key, value) {
+      responseHeaders[key] = [value];
+    });
+
+    return ResponseBody(
+      response.stream.map((chunk) => Uint8List.fromList(chunk)),
+      response.statusCode,
+      headers: responseHeaders,
+    );
+  }
+
+  @override
+  void close({bool force = false}) {
+    client.close();
+  }
+}
+
+class ApiClient {
+  static const String defaultBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://school-management-74ecc.web.app/api',
+  );
   static const String _accessTokenKey = 'auth_token';
   static const String _refreshTokenKey = 'auth_refresh_token';
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
   final String _baseUrl;
-  final http.Client _http;
+  final Dio dio;
   String? _token;
   String? _refreshToken;
   Future<String?>? _refreshing;
   final _expiredController = StreamController<void>.broadcast();
+
+  ApiClient({String? baseUrl, http.Client? httpClient})
+      : _baseUrl = baseUrl ?? defaultBaseUrl,
+        dio = Dio(BaseOptions(
+          baseUrl: baseUrl ?? defaultBaseUrl,
+          connectTimeout: const Duration(seconds: 20),
+          receiveTimeout: const Duration(seconds: 20),
+        )) {
+    if (httpClient != null) {
+      dio.httpClientAdapter = HttpClientAdapterWrapper(httpClient);
+    }
+    dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) {
+        if (_token != null) {
+          options.headers['Authorization'] = 'Bearer $_token';
+        }
+        options.headers['Accept'] = 'application/json';
+        return handler.next(options);
+      },
+      onResponse: (response, handler) {
+        final decoded = response.data;
+        if (decoded is Map<String, dynamic>) {
+          final success = decoded['success'] == true;
+          if (!success) {
+            final err = decoded['error'];
+            final code = err is Map ? (err['code']?.toString() ?? 'error') : 'error';
+            final message = err is Map
+                ? (err['message']?.toString() ?? 'Request failed')
+                : (decoded['message']?.toString() ?? 'Request failed');
+            return handler.reject(
+              DioException(
+                requestOptions: response.requestOptions,
+                response: response,
+                type: DioExceptionType.badResponse,
+                error: ApiException(message, statusCode: response.statusCode ?? 500, code: code),
+              ),
+            );
+          }
+        }
+        return handler.next(response);
+      },
+      onError: (DioException err, handler) async {
+        final status = err.response?.statusCode;
+        final path = err.requestOptions.path;
+
+        if (status == 401 && path != '/auth/login' && path != '/auth/refresh') {
+          try {
+            final refreshed = await _tryRefresh();
+            if (refreshed) {
+              final options = err.requestOptions;
+              options.headers['Authorization'] = 'Bearer $_token';
+              final retryResponse = await dio.fetch<dynamic>(options);
+              return handler.resolve(retryResponse);
+            }
+          } catch (_) {}
+          await clearTokens();
+          _expiredController.add(null);
+        }
+
+        if (err.response?.data is Map<String, dynamic>) {
+          final decoded = err.response!.data as Map<String, dynamic>;
+          final success = decoded['success'] == true;
+          if (!success) {
+            final errObj = decoded['error'];
+            final code = errObj is Map ? (errObj['code']?.toString() ?? 'error') : 'error';
+            final message = errObj is Map
+                ? (errObj['message']?.toString() ?? 'Request failed')
+                : (decoded['message']?.toString() ?? 'Request failed');
+            return handler.next(
+              DioException(
+                requestOptions: err.requestOptions,
+                response: err.response,
+                type: err.type,
+                error: ApiException(message, statusCode: status ?? 500, code: code),
+              ),
+            );
+          }
+        }
+
+        return handler.next(err);
+      },
+    ));
+  }
 
   String get baseUrl => _baseUrl;
   Stream<void> get onSessionExpired => _expiredController.stream;
@@ -48,9 +178,13 @@ class ApiClient {
     }
   }
 
-  Future<void> setTokens({String? accessToken, String? refreshToken}) async {
+  Future<void> setTokens({String? accessToken, String? refreshToken, bool clearRefreshToken = false}) async {
     _token = accessToken;
-    if (refreshToken != null) _refreshToken = refreshToken;
+    if (refreshToken != null) {
+      _refreshToken = refreshToken;
+    } else if (clearRefreshToken) {
+      _refreshToken = null;
+    }
     final prefs = await SharedPreferences.getInstance();
     if (accessToken == null) {
       await prefs.remove(_accessTokenKey);
@@ -59,84 +193,137 @@ class ApiClient {
       await prefs.setString(_accessTokenKey, accessToken);
       try { await _secureStorage.write(key: _accessTokenKey, value: accessToken); } catch (_) {}
     }
-    if (refreshToken == null) {
+    if (refreshToken == null && clearRefreshToken) {
       await prefs.remove(_refreshTokenKey);
       try { await _secureStorage.delete(key: _refreshTokenKey); } catch (_) {}
-    } else {
+    } else if (refreshToken != null) {
       await prefs.setString(_refreshTokenKey, refreshToken);
       try { await _secureStorage.write(key: _refreshTokenKey, value: refreshToken); } catch (_) {}
     }
   }
 
-  Future<void> clearTokens() => setTokens(accessToken: null, refreshToken: null);
+  Future<void> clearTokens() => setTokens(accessToken: null, refreshToken: null, clearRefreshToken: true);
 
   String? get token => _token;
   String? get refreshToken => _refreshToken;
   bool get hasToken => _token != null && _token!.isNotEmpty;
 
-  Map<String, String> _headers({bool json = true}) {
-    final h = <String, String>{};
-    if (json) h['Content-Type'] = 'application/json';
-    h['Accept'] = 'application/json';
-    if (_token != null) h['Authorization'] = 'Bearer $_token';
-    return h;
+  String _buildUrl(String path) {
+    final cleanPath = path.startsWith('/') ? path : '/$path';
+    final cleanBase = _baseUrl.endsWith('/') ? _baseUrl.substring(0, _baseUrl.length - 1) : _baseUrl;
+    return '$cleanBase$cleanPath';
   }
 
-  Uri _uri(String path, [Map<String, dynamic>? query]) {
-    final base = Uri.parse(_baseUrl);
-    final normalizedPath = path.startsWith('/') ? path : '/$path';
-    final cleaned = <String, String>{};
-    query?.forEach((k, v) {
-      if (v == null) return;
-      cleaned[k] = v.toString();
-    });
-    return base.replace(
-      path: '${base.path}$normalizedPath',
-      queryParameters: cleaned.isEmpty ? null : cleaned,
-    );
-  }
-
-  Future<dynamic> get(String path, {Map<String, dynamic>? query}) =>
-      _send(() => _http.get(_uri(path, query), headers: _headers(json: false)), path);
-
-  Future<dynamic> post(String path, {Object? body}) =>
-      _send(() => _http.post(_uri(path),
-          headers: _headers(), body: body == null ? null : jsonEncode(body)), path,
-          body: body);
-
-  Future<dynamic> put(String path, {Object? body}) =>
-      _send(() => _http.put(_uri(path),
-          headers: _headers(), body: body == null ? null : jsonEncode(body)), path,
-          body: body);
-
-  Future<dynamic> delete(String path) =>
-      _send(() => _http.delete(_uri(path), headers: _headers(json: false)), path);
-
-  Future<dynamic> _send(
-    Future<http.Response> Function() sender,
-    String path, {
-    Object? body,
-    bool retried = false,
-  }) async {
-    try {
-      final res = await sender();
-      if (res.statusCode == 401 && !retried && path != '/auth/login' && path != '/auth/refresh') {
-        final refreshed = await _tryRefresh();
-        if (refreshed) {
-          return _send(sender, path, body: body, retried: true);
-        }
-        await clearTokens();
-        _expiredController.add(null);
+  dynamic _processResponse(Response<dynamic> response) {
+    var data = response.data;
+    if (data is String && data.isNotEmpty) {
+      try {
+        data = jsonDecode(data);
+      } catch (_) {}
+    }
+    if (data is Map<String, dynamic>) {
+      final success = data['success'] == true;
+      if (!success) {
+        final err = data['error'];
+        final code = err is Map ? (err['code']?.toString() ?? 'error') : 'error';
+        final message = err is Map
+            ? (err['message']?.toString() ?? 'Request failed')
+            : (data['message']?.toString() ?? 'Request failed');
+        throw ApiException(message, statusCode: response.statusCode ?? 500, code: code);
       }
-      return _parse(res);
-    } on SocketException catch (e) {
-      throw ApiException(_friendlyMessage(e), code: 'network');
-    } on http.ClientException catch (e) {
-      throw ApiException(_friendlyMessage(e), code: 'network');
-    } on TimeoutException {
-      throw const ApiException(
-        'The server is taking too long to respond. Please try again.',
-        code: 'timeout',
+      return data['data'];
+    }
+    return data;
+  }
+
+  Future<dynamic> get(String path, {Map<String, dynamic>? query}) async {
+    try {
+      final response = await dio.get<dynamic>(_buildUrl(path), queryParameters: query);
+      return _processResponse(response);
+    } on DioException catch (e) {
+      if (e.error is ApiException) {
+        throw e.error!;
+      }
+      if (e.response != null) {
+        try {
+          return _processResponse(e.response!);
+        } on ApiException {
+          rethrow;
+        } catch (_) {}
+      }
+      throw ApiException(
+        e.message ?? 'Network Error',
+        statusCode: e.response?.statusCode ?? 500,
+        code: 'network',
+      );
+    }
+  }
+
+  Future<dynamic> post(String path, {Object? body}) async {
+    try {
+      final response = await dio.post<dynamic>(_buildUrl(path), data: body);
+      return _processResponse(response);
+    } on DioException catch (e) {
+      if (e.error is ApiException) {
+        throw e.error!;
+      }
+      if (e.response != null) {
+        try {
+          return _processResponse(e.response!);
+        } on ApiException {
+          rethrow;
+        } catch (_) {}
+      }
+      throw ApiException(
+        e.message ?? 'Network Error',
+        statusCode: e.response?.statusCode ?? 500,
+        code: 'network',
+      );
+    }
+  }
+
+  Future<dynamic> put(String path, {Object? body}) async {
+    try {
+      final response = await dio.put<dynamic>(_buildUrl(path), data: body);
+      return _processResponse(response);
+    } on DioException catch (e) {
+      if (e.error is ApiException) {
+        throw e.error!;
+      }
+      if (e.response != null) {
+        try {
+          return _processResponse(e.response!);
+        } on ApiException {
+          rethrow;
+        } catch (_) {}
+      }
+      throw ApiException(
+        e.message ?? 'Network Error',
+        statusCode: e.response?.statusCode ?? 500,
+        code: 'network',
+      );
+    }
+  }
+
+  Future<dynamic> delete(String path) async {
+    try {
+      final response = await dio.delete<dynamic>(_buildUrl(path));
+      return _processResponse(response);
+    } on DioException catch (e) {
+      if (e.error is ApiException) {
+        throw e.error!;
+      }
+      if (e.response != null) {
+        try {
+          return _processResponse(e.response!);
+        } on ApiException {
+          rethrow;
+        } catch (_) {}
+      }
+      throw ApiException(
+        e.message ?? 'Network Error',
+        statusCode: e.response?.statusCode ?? 500,
+        code: 'network',
       );
     }
   }
@@ -148,9 +335,7 @@ class ApiClient {
       return token != null;
     }
     final pending = _doRefresh();
-    _refreshing = pending.then<String?>((value) => value).whenComplete(() {
-      _refreshing = null;
-    });
+    _refreshing = pending;
     final token = await pending;
     return token != null;
   }
@@ -158,12 +343,11 @@ class ApiClient {
   Future<String?> _doRefresh() async {
     if (_refreshToken == null) return null;
     try {
-      final res = await _http.post(
-        _uri('/auth/refresh'),
-        headers: const {'Content-Type': 'application/json', 'Accept': 'application/json'},
-        body: jsonEncode({'refreshToken': _refreshToken}),
+      final response = await dio.post<dynamic>(
+        '/auth/refresh',
+        data: <String, String>{'refreshToken': _refreshToken!},
       );
-      final data = _parse(res) as Map<String, dynamic>;
+      final data = _processResponse(response) as Map<String, dynamic>;
       final token = (data['accessToken'] ?? data['token']) as String?;
       final nextRefresh = data['refreshToken'] as String?;
       if (token == null) return null;
@@ -171,54 +355,9 @@ class ApiClient {
       return token;
     } catch (_) {
       return null;
+    } finally {
+      _refreshing = null;
     }
-  }
-
-  dynamic _parse(http.Response res) {
-    final status = res.statusCode;
-    dynamic body;
-    if (res.body.isNotEmpty) {
-      try {
-        body = jsonDecode(res.body);
-      } catch (_) {
-        body = res.body;
-      }
-    }
-    if (status >= 200 && status < 300) {
-      if (body is Map<String, dynamic> && body['success'] == true) {
-        return body['data'];
-      }
-      return body;
-    }
-    String message = _statusFallback(status);
-    String code = 'error';
-    if (body is Map<String, dynamic>) {
-      final err = body['error'];
-      if (err is Map<String, dynamic>) {
-        code = (err['code'] as String?) ?? code;
-        message = (err['message'] as String?) ?? message;
-      } else if (body['message'] is String) {
-        message = body['message'] as String;
-      }
-    }
-    throw ApiException(message, statusCode: status, code: code);
-  }
-
-  String _statusFallback(int status) {
-    if (status == 401) return 'Your session has expired. Please sign in again.';
-    if (status == 403) return 'You don\'t have permission to do that.';
-    if (status == 404) return 'We couldn\'t find what you were looking for.';
-    if (status == 429) return 'Too many requests. Please slow down and try again.';
-    if (status >= 500) return 'Our server is having trouble. Please try again in a moment.';
-    return 'Request failed ($status)';
-  }
-
-  String _friendlyMessage(Object error) {
-    if (kIsWeb) return 'Couldn\'t reach the server. Check your connection.';
-    if (Platform.isAndroid || Platform.isIOS) {
-      return 'Couldn\'t reach the server. Check your internet connection.';
-    }
-    return 'Network error. Please check your connection.';
   }
 
   void dispose() {

@@ -1,1 +1,14 @@
-{"flutter":{"platforms":{"dart":{"lib/firebase_options.dart":{"projectId":"schoolmanagement-23f78","configurations":{"web":"1:808237907156:web:a148c2134f91e03a4e8f41"}}}}}}
+{
+    "flutter": {
+        "platforms": {
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "your-firebase-project-id",
+                    "configurations": {
+                        "web": "your-web-app-id"
+                    }
+                }
+            }
+        }
+    }
+}

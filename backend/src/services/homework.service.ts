@@ -1,5 +1,6 @@
 import { homeworkRepository } from "../repositories/homework.repository";
 import { NotFoundError } from "../utils/errors";
+import { sendPushToAudience } from "./notification.service";
 
 export async function listHomework(filter?: { classSectionId?: string; studentId?: string }) {
   return homeworkRepository.findAll(filter);
@@ -12,7 +13,17 @@ export async function getHomework(id: string) {
 }
 
 export async function createHomework(data: { title: string; description: string; subjectId: string; classSectionId: string; dueDate: string; attachments?: string[]; createdBy: string }) {
-  return homeworkRepository.create({ ...data, attachments: data.attachments || [] });
+  const homework = await homeworkRepository.create({ ...data, attachments: data.attachments || [] });
+  try {
+    await sendPushToAudience([data.classSectionId], {
+      title: "New Homework Assigned",
+      body: `${data.title} is due on ${data.dueDate}`,
+      data: { homeworkId: homework.id },
+    });
+  } catch (err) {
+    // Ignore push notification failure so homework creation doesn't fail
+  }
+  return homework;
 }
 
 export async function updateHomework(id: string, data: Partial<{ title: string; description: string; subjectId: string; classSectionId: string; dueDate: string; attachments: string[] }>) {

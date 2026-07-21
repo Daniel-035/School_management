@@ -39,7 +39,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { userService } from "@/services/userService";
-import type { CreatedUserResult, Student, User } from "@/types";
+import { academicService } from "@/services/academicService";
+import type { CreatedUserResult, Student, User, ClassSection } from "@/types";
 import { Pencil, Trash2, Plus, Copy, Check, Mail } from "lucide-react";
 import { EmptyState, ErrorState, FieldError, SkeletonRows } from "@/components/ui/async-state";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -75,28 +76,25 @@ const parentSchema = z.object({
 });
 type ParentForm = z.infer<typeof parentSchema>;
 
-const CLASSES = [
-  { id: "cs-5a", label: "Grade 5 - A" },
-  { id: "cs-6b", label: "Grade 6 - B" },
-  { id: "cs-7b", label: "Grade 7 - B" },
-];
-
 export function UsersPage() {
   const queryClient = useQueryClient();
   const queries = useQueries({ queries: [
     { queryKey: queryKeys.users("staff"), queryFn: () => userService.getByRole("staff") },
     { queryKey: queryKeys.users("parent"), queryFn: () => userService.getByRole("parent") },
     { queryKey: queryKeys.students, queryFn: userService.getStudents },
+    { queryKey: queryKeys.classes, queryFn: academicService.getClasses },
   ] });
   const staff = (queries[0].data ?? []) as User[];
   const parents = (queries[1].data ?? []) as User[];
   const studentData = queries[2].data;
+  const classes = (queries[3].data ?? []) as ClassSection[];
   const students = useMemo(() => (studentData ?? []) as Student[], [studentData]);
   const loading = queries.some((query) => query.isPending);
   const error = queries.find((query) => query.error)?.error;
   const reload = () => Promise.all([
     queryClient.invalidateQueries({ queryKey: queryKeys.students }),
     queryClient.invalidateQueries({ queryKey: ["users"] }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.classes }),
   ]);
 
   const [studentOpen, setStudentOpen] = useState(false);
@@ -131,7 +129,19 @@ export function UsersPage() {
     "name-desc": (a: Student | User, b: Student | User) => b.name.localeCompare(a.name),
     "created-desc": (a: Student | User, b: Student | User) => String(b.createdAt).localeCompare(String(a.createdAt)),
   };
-  const studentTable = applyTableState(students, { search, filter: statusFilter, sort, page, searchText: row => `${row.name} ${row.rollNumber ?? ""} ${row.classSectionId}`, filterValue: row => row.status, sorters });
+  const studentTable = applyTableState(students, {
+    search,
+    filter: statusFilter,
+    sort,
+    page,
+    searchText: row => {
+      const cls = classes.find((c) => c.id === row.classSectionId);
+      const className = cls ? (cls.name || `Grade ${cls.grade} - ${cls.section}`) : "";
+      return `${row.name} ${row.rollNumber ?? ""} ${className}`;
+    },
+    filterValue: row => row.status,
+    sorters
+  });
   const staffTable = applyTableState(staff, { search, filter: statusFilter, sort, page, searchText: row => `${row.name} ${row.email}`, filterValue: row => row.status, sorters });
   const parentTable = applyTableState(parents, { search, filter: statusFilter, sort, page, searchText: row => `${row.name} ${row.email}`, filterValue: row => row.status, sorters });
   const toggleStudent = (id: string) => setSelectedStudents(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
@@ -288,10 +298,10 @@ export function UsersPage() {
     </Dialog>
   );
 
-  const renderUserFormDialog = (opts: { open: boolean; onOpenChange: (v: boolean) => void; editing: User | null; title: string; description: string; form: ReturnType<typeof useForm<UserForm | ParentForm>>; onSubmit: ReturnType<typeof useForm<UserForm>>["handleSubmit"] | ReturnType<typeof useForm<ParentForm>>["handleSubmit"]; extraFields?: React.ReactNode }) => (
+  const renderUserFormDialog = (opts: { open: boolean; onOpenChange: (v: boolean) => void; editing: User | null; title: string; description: string; form: any; onSubmit: any; extraFields?: React.ReactNode }) => (
     <Dialog open={opts.open} onOpenChange={opts.onOpenChange}>
       <DialogContent>
-        <form onSubmit={opts.onSubmit as never} className="space-y-4" noValidate>
+        <form onSubmit={opts.onSubmit} className="space-y-4" noValidate>
           <DialogHeader>
             <DialogTitle>{opts.title}</DialogTitle>
             <DialogDescription>{opts.description}</DialogDescription>
@@ -299,18 +309,18 @@ export function UsersPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>First Name</Label>
-              <Input {...(opts.form.register as never)("firstName")} aria-invalid={Boolean(opts.form.formState.errors.firstName)} />
+              <Input {...opts.form.register("firstName")} aria-invalid={Boolean(opts.form.formState.errors.firstName)} />
               <FieldError message={opts.form.formState.errors.firstName?.message} />
             </div>
             <div className="space-y-2">
               <Label>Last Name</Label>
-              <Input {...(opts.form.register as never)("lastName")} aria-invalid={Boolean(opts.form.formState.errors.lastName)} />
+              <Input {...opts.form.register("lastName")} aria-invalid={Boolean(opts.form.formState.errors.lastName)} />
               <FieldError message={opts.form.formState.errors.lastName?.message} />
             </div>
           </div>
           <div className="space-y-2">
             <Label>Email</Label>
-            <Input type="email" {...(opts.form.register as never)("email")} aria-invalid={Boolean(opts.form.formState.errors.email)} />
+            <Input type="email" {...opts.form.register("email")} aria-invalid={Boolean(opts.form.formState.errors.email)} />
             <FieldError message={opts.form.formState.errors.email?.message} />
           </div>
           {opts.extraFields}
@@ -373,7 +383,13 @@ export function UsersPage() {
                   <Label>Class</Label>
                   <Controller name="classSectionId" control={studentForm.control} render={({ field }) => <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
-                    <SelectContent>{CLASSES.map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent>
+                    <SelectContent>
+                      {classes.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name || `Grade ${c.grade} - ${c.section}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>} />
                   <FieldError message={studentForm.formState.errors.classSectionId?.message} />
                 </div>
@@ -413,7 +429,9 @@ export function UsersPage() {
                     <TableCell><Checkbox checked={selectedStudents.includes(s.id)} onCheckedChange={() => toggleStudent(s.id)} /></TableCell>
                     <TableCell className="font-medium">{s.name}</TableCell>
                     <TableCell>{s.rollNumber}</TableCell>
-                    <TableCell>{s.classSectionId}</TableCell>
+                    <TableCell>
+                      {classes.find((c) => c.id === s.classSectionId)?.name ?? s.classSectionId}
+                    </TableCell>
                     <TableCell>{parent?.name ?? "—"}</TableCell>
                     <TableCell><Badge variant={s.status === "active" ? "success" : "secondary"}>{s.status}</Badge></TableCell>
                     <TableCell><div className="flex gap-1">

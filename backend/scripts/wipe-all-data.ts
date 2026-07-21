@@ -1,11 +1,31 @@
+/**
+ * Wipe all Firestore data, Firebase Auth users, and Storage files.
+ *
+ * Usage:
+ *   SERVICE_ACCOUNT_PATH=/path/to/your-service-account.json \
+ *   FIREBASE_PROJECT_ID=your-project-id \
+ *   FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com \
+ *   npx ts-node scripts/wipe-all-data.ts
+ *
+ * WARNING: This is destructive and irreversible. Only run against dev/test projects.
+ */
 import * as fs from "fs";
 import { cert, initializeApp, ServiceAccount } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { getStorage } from "firebase-admin/storage";
 
-const SERVICE_ACCOUNT_PATH =
-  "C:\\Users\\rishi\\Downloads\\schoolmanagement-23f78-firebase-adminsdk-fbsvc-544e432d84.json";
+const SERVICE_ACCOUNT_PATH = process.env.SERVICE_ACCOUNT_PATH;
+const PROJECT_ID = process.env.FIREBASE_PROJECT_ID;
+const STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET;
+
+if (!SERVICE_ACCOUNT_PATH || !PROJECT_ID || !STORAGE_BUCKET) {
+  console.error(
+    "Required environment variables missing.\n" +
+    "Set SERVICE_ACCOUNT_PATH, FIREBASE_PROJECT_ID, and FIREBASE_STORAGE_BUCKET before running."
+  );
+  process.exit(1);
+}
 
 const serviceAccount = JSON.parse(
   fs.readFileSync(SERVICE_ACCOUNT_PATH, "utf-8")
@@ -13,8 +33,8 @@ const serviceAccount = JSON.parse(
 
 const app = initializeApp({
   credential: cert(serviceAccount),
-  projectId: "schoolmanagement-23f78",
-  storageBucket: "schoolmanagement-23f78.firebasestorage.app",
+  projectId: PROJECT_ID,
+  storageBucket: STORAGE_BUCKET,
 });
 
 const db = getFirestore(app);
@@ -89,7 +109,7 @@ async function deleteAllStorageFiles(): Promise<number> {
 }
 
 async function main() {
-  console.log("Starting full data wipe...");
+  console.log(`Starting full data wipe for project: ${PROJECT_ID}`);
 
   const subDeleted = await deleteSubcollections("messageThreads", "messages");
   console.log(`Deleted ${subDeleted} subcollection documents`);

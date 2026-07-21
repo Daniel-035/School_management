@@ -86,11 +86,13 @@ class SchoolRepository extends ChangeNotifier {
       _notifications = await _pushService.loadNotifications();
       notifyListeners();
     });
-    if (_api.isAuthenticated) {
+    if (_api.isAuthenticated && _currentStaff == null) {
       try {
         final user = await _auth.me();
-        _currentStaff = _staffFromAuth(user);
-        await loadAll();
+        if (_currentStaff == null) {
+          _currentStaff = _staffFromAuth(user);
+          await loadAll();
+        }
       } catch (_) {}
     }
     notifyListeners();

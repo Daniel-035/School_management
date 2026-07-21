@@ -154,3 +154,8 @@ export const receipt = asyncHandler(async (req: Request, res: Response) => {
     },
   });
 });
+
+export const sendReminder = asyncHandler(async (req: Request, res: Response) => {
+  const result = await feeService.sendFeeReminderPush(req.params.id);
+  success(res, result);
+});

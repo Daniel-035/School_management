@@ -18,6 +18,7 @@ router.get("/payments/:id", validateParams(schema.idParams), feeController.getFe
 router.post("/payments", requireRole(UserRole.Admin), validateBody(schema.paymentCreate), feeController.createFeePayment);
 router.post("/payments/:id/pay", requireRole(UserRole.Parent), validateParams(schema.idParams), validateBody(schema.paymentRecord), feeController.recordPayment);
 router.get("/payments/:id/receipt", validateParams(schema.idParams), feeController.receipt);
+router.post("/payments/:id/remind", requireRole(UserRole.Admin), validateParams(schema.idParams), feeController.sendReminder);
 
 router.post("/payments/orders", validateBody(schema.orderCreate), feeController.createOrder);
 router.post("/payments/verify", validateBody(schema.paymentVerify), feeController.verifyPayment);

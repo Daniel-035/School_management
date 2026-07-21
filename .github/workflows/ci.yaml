@@ -1,0 +1,162 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  backend-lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Setup Java (required for Firestore emulator)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Install shared-types
+        run: npm ci
+        working-directory: packages/shared-types
+
+      - name: Build shared-types
+        run: npm run build
+        working-directory: packages/shared-types
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Backend typecheck
+        run: npm run typecheck
+        working-directory: backend
+
+      - name: Backend integration tests (emulator)
+        run: npm run test:emulator
+        working-directory: backend
+
+  functions-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Install shared-types
+        run: npm ci && npm run build
+        working-directory: packages/shared-types
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Install functions dependencies
+        run: npm ci
+        working-directory: functions
+
+      - name: Build Cloud Functions (TypeScript compile check)
+        run: npm run build
+        working-directory: functions
+
+  admin-panel-lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+          cache-dependency-path: admin_panel/package-lock.json
+
+      - name: Install shared-types
+        run: npm ci && npm run build
+        working-directory: packages/shared-types
+
+      - name: Install admin panel dependencies
+        run: npm ci
+        working-directory: admin_panel
+
+      - name: Admin panel lint
+        run: npm run lint
+        working-directory: admin_panel
+
+      - name: Admin panel unit tests
+        run: npm run test
+        working-directory: admin_panel
+
+  staff-app-lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Get dependencies (shared_models)
+        run: flutter pub get
+        working-directory: packages/shared_models
+
+      - name: Get dependencies (staff_app)
+        run: flutter pub get
+        working-directory: staff_app
+
+      - name: Staff app analyzer
+        run: flutter analyze
+        working-directory: staff_app
+
+      - name: Staff app tests
+        run: flutter test
+        working-directory: staff_app
+
+  parent-app-lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Get dependencies (shared_models)
+        run: flutter pub get
+        working-directory: packages/shared_models
+
+      - name: Get dependencies (parent_app)
+        run: flutter pub get
+        working-directory: parent_app
+
+      - name: Parent app analyzer
+        run: flutter analyze
+        working-directory: parent_app
+
+      - name: Parent app tests
+        run: flutter test
+        working-directory: parent_app

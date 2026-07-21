@@ -13,6 +13,9 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   cupertino_icons: ^1.0.6
+  shared_models:
+    path: ../packages/shared_models
+  dio: ^5.4.3
 
   # State management
   flutter_riverpod: ^2.5.1

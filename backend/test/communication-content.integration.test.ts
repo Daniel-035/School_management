@@ -10,6 +10,16 @@ describe("announcement, communication, and event routes", () => {
     const parent = await login("parent@school.local", "admin123");
     const headers = auth(admin.accessToken);
     jest.spyOn(messaging, "send").mockResolvedValue("test-message-id");
+    jest.spyOn(messaging, "sendEachForMulticast").mockResolvedValue({
+      successCount: 1,
+      failureCount: 0,
+      responses: [{ success: true, messageId: "test-message-id" }],
+    });
+
+    await request(app).post("/api/devices").set(headers).send({
+      token: "test-device-token",
+      platform: "web",
+    }).expect(204);
 
     await request(app).get("/api/announcements").set(headers).expect(200);
     await request(app).get("/api/announcements/ann-1").set(headers).expect(200);

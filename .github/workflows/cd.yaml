@@ -1,0 +1,77 @@
+name: Continuous Deployment
+
+on:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # ── shared-types (required by admin panel build) ──────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+          cache-dependency-path: |
+            packages/shared-types/package-lock.json
+            admin_panel/package-lock.json
+            functions/package-lock.json
+
+      - name: Install & build shared-types
+        run: |
+          npm ci
+          npm run build
+        working-directory: packages/shared-types
+
+      # ── Admin Panel ───────────────────────────────────────────────────────
+      - name: Install admin panel dependencies
+        run: npm ci
+        working-directory: admin_panel
+
+      - name: Build admin panel
+        run: npm run build
+        working-directory: admin_panel
+        env:
+          VITE_API_BASE_URL: /api
+
+      # ── Cloud Functions ───────────────────────────────────────────────────
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Install functions dependencies
+        run: npm ci
+        working-directory: functions
+
+      - name: Build Cloud Functions
+        run: npm run build
+        working-directory: functions
+
+      # ── Firebase Deploy ───────────────────────────────────────────────────
+      - name: Deploy to Firebase
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          projectId: '${{ secrets.FIREBASE_PROJECT_ID }}'
+          channelId: live
+          # deploy everything: functions + hosting + firestore rules
+          entryPoint: '.'
+        env:
+          FIREBASE_CLI_EXPERIMENTS: webframeworks
+
+      - name: Run post-deploy smoke test
+        run: |
+          sleep 15
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://${{ secrets.FIREBASE_PROJECT_ID }}.web.app/api/health")
+          echo "Health check status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::Health check failed with status $STATUS"
+            exit 1
+          fi

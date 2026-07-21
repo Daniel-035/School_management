@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "lib",
+    "rootDir": "..",
+    "sourceMap": true,
+    "paths": {
+      "shared-types": ["../packages/shared-types/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*", "../backend/src/**/*"],
+  "exclude": ["node_modules", "lib", "../backend/node_modules", "../backend/dist"]
+}

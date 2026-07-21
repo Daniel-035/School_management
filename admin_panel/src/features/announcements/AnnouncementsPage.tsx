@@ -20,7 +20,7 @@ import { useAuth } from "@/features/auth/AuthContext";
 import { formatDate } from "@/lib/utils";
 import { queryKeys } from "@/lib/queryClient";
 
-const audiences: AnnouncementAudience[] = ["all", "staff", "parents"];
+const audiences: AnnouncementAudience[] = ["all", "staff", "parents", "class"];
 const channels: AnnouncementChannel[] = ["push", "sms", "email"];
 const schema = z.object({ title: z.string().trim().min(3, "Enter at least 3 characters"), body: z.string().trim().min(10, "Enter at least 10 characters"), audience: z.array(z.enum(["all", "staff", "parents", "class"])).min(1, "Select an audience"), channels: z.array(z.enum(["push", "sms", "email"])).min(1, "Select a channel"), classIds: z.array(z.string()), scheduledFor: z.string() });
 type FormValues = z.infer<typeof schema>;

@@ -1,3 +1,6 @@
+import axios from "axios";
+import type { AxiosError, InternalAxiosRequestConfig } from "axios";
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
 const SESSION_KEY = "educonnect.session";
 
@@ -36,84 +39,149 @@ function clearSession() {
   window.dispatchEvent(new Event("auth:session-expired"));
 }
 
-async function parseResponse<T>(response: Response): Promise<T> {
-  if (response.status === 204) return undefined as T;
-  const json = (await response.json()) as ApiResponse<T>;
-  if (!response.ok || !json.success) {
-    throw new ApiError(json.error?.message || `Request failed: ${response.status}`, response.status, json.error?.code);
-  }
-  return json.data as T;
-}
-
-let refreshRequest: Promise<string> | null = null;
-
-async function refreshAccessToken(): Promise<string> {
-  if (refreshRequest) return refreshRequest;
-  const session = getSession();
-  if (!session?.refreshToken) {
-    clearSession();
-    throw new ApiError("Your session has expired", 401, "UNAUTHORIZED");
-  }
-
-  refreshRequest = fetch(`${API_BASE}/auth/refresh`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ refreshToken: session.refreshToken }),
-  })
-    .then((response) => parseResponse<{ token: string; accessToken?: string; refreshToken: string; user: unknown }>(response))
-    .then((result) => {
-      const token = result.accessToken ?? result.token;
-      localStorage.setItem(SESSION_KEY, JSON.stringify({ token, refreshToken: result.refreshToken, user: result.user }));
-      return token;
-    })
-    .catch((error) => {
-      clearSession();
-      throw error;
-    })
-    .finally(() => {
-      refreshRequest = null;
-    });
-
-  return refreshRequest;
-}
-
-async function request<T>(method: string, path: string, body?: unknown, retry = true): Promise<T> {
-  const headers: Record<string, string> = {
+const apiClient = axios.create({
+  baseURL: API_BASE,
+  headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
-  };
-  const token = getSession()?.token;
-  if (token) headers.Authorization = `Bearer ${token}`;
+  },
+});
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
+apiClient.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    const token = getSession()?.token;
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (value: string) => void;
+  reject: (error: unknown) => void;
+}> = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else if (token) {
+      prom.resolve(token);
+    }
   });
+  failedQueue = [];
+};
 
-  if (response.status === 401 && retry && path !== "/auth/login" && path !== "/auth/refresh") {
-    await refreshAccessToken();
-    return request<T>(method, path, body, false);
-  }
-  return parseResponse<T>(response);
-}
+apiClient.interceptors.response.use(
+  (response) => {
+    const resData = response.data as ApiResponse;
+    if (!resData.success) {
+      throw new ApiError(
+        resData.error?.message || "Request failed",
+        response.status,
+        resData.error?.code
+      );
+    }
+    return response;
+  },
+  async (error: AxiosError<ApiResponse>) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const status = error.response?.status;
 
-async function formRequest<T>(path: string, formData: FormData, retry = true): Promise<T> {
-  const headers: Record<string, string> = { Accept: "application/json" };
-  const token = getSession()?.token;
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const response = await fetch(`${API_BASE}${path}`, { method: "POST", headers, body: formData });
-  if (response.status === 401 && retry) {
-    await refreshAccessToken();
-    return formRequest<T>(path, formData, false);
+    // Handle structured API error formats
+    if (error.response?.data) {
+      const resData = error.response.data;
+      if (!resData.success) {
+        return Promise.reject(
+          new ApiError(
+            resData.error?.message || "Request failed",
+            status || 500,
+            resData.error?.code
+          )
+        );
+      }
+    }
+
+    if (
+      status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      originalRequest.url !== "/auth/login" &&
+      originalRequest.url !== "/auth/refresh"
+    ) {
+      if (isRefreshing) {
+        return new Promise<string>((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return apiClient(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      const session = getSession();
+      if (!session?.refreshToken) {
+        clearSession();
+        return Promise.reject(new ApiError("Your session has expired", 401, "UNAUTHORIZED"));
+      }
+
+      try {
+        const response = await axios.post<ApiResponse<{ token: string; accessToken?: string; refreshToken: string; user: unknown }>>(
+          `${API_BASE}/auth/refresh`,
+          { refreshToken: session.refreshToken }
+        );
+        const result = response.data;
+        if (!result.success || !result.data) {
+          throw new Error("Token refresh failed");
+        }
+        const token = result.data.accessToken ?? result.data.token;
+        localStorage.setItem(
+          SESSION_KEY,
+          JSON.stringify({
+            token,
+            refreshToken: result.data.refreshToken,
+            user: result.data.user,
+          })
+        );
+        processQueue(null, token);
+        originalRequest.headers.Authorization = `Bearer ${token}`;
+        return apiClient(originalRequest);
+      } catch (err) {
+        processQueue(err, null);
+        clearSession();
+        return Promise.reject(
+          new ApiError("Your session has expired", 401, "UNAUTHORIZED")
+        );
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    return Promise.reject(
+      new ApiError(error.message || "Network Error", status || 500, "NETWORK_ERROR")
+    );
   }
-  return parseResponse<T>(response);
-}
+);
 
 export const api = {
-  get: <T>(path: string) => request<T>("GET", path),
-  post: <T>(path: string, body?: unknown) => request<T>("POST", path, body),
-  put: <T>(path: string, body?: unknown) => request<T>("PUT", path, body),
-  delete: <T>(path: string) => request<T>("DELETE", path),
-  postForm: <T>(path: string, formData: FormData) => formRequest<T>(path, formData),
+  get: <T>(path: string) => apiClient.get<ApiResponse<T>>(path).then((res) => res.data.data as T),
+  post: <T>(path: string, body?: unknown) =>
+    apiClient.post<ApiResponse<T>>(path, body).then((res) => res.data.data as T),
+  put: <T>(path: string, body?: unknown) =>
+    apiClient.put<ApiResponse<T>>(path, body).then((res) => res.data.data as T),
+  delete: <T>(path: string) =>
+    apiClient.delete<ApiResponse<T>>(path).then((res) => res.data.data as T),
+  postForm: <T>(path: string, formData: FormData) =>
+    apiClient
+      .post<ApiResponse<T>>(path, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      .then((res) => res.data.data as T),
 };
