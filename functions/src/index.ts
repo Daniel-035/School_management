@@ -30,7 +30,7 @@ function getApp() {
 export const api = onRequest(
   {
     invoker: "public",
-    cors: false,        // CORS is handled inside the Express app
+    cors: true,
     timeoutSeconds: 60,
   },
   (req, res) => getApp()(req, res),

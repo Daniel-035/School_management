@@ -29,7 +29,8 @@ export function createApp(): Application {
       null,
       !origin
         || corsOrigins.includes(origin)
-        || (env.NODE_ENV !== "production" && /^http:\/\/(?:localhost|127\.0\.0\.1):\d+$/.test(origin)),
+        || /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(origin)
+        || /^https:\/\/[a-z0-9-]+\.(?:web\.app|firebaseapp\.com)$/.test(origin),
     ),
     credentials: true,
   }));
