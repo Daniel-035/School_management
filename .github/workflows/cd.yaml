@@ -67,7 +67,7 @@ jobs:
 
       - name: Run post-deploy smoke test
         run: |
-          sleep 15
+          sleep 25
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             "https://${{ secrets.FIREBASE_PROJECT_ID }}.web.app/api/health")
           echo "Health check status: $STATUS"

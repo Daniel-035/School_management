@@ -38,11 +38,16 @@ export function createApp(): Application {
   app.use("/api/auth", rateLimit({ windowMs: env.AUTH_RATE_LIMIT_WINDOW_MS, limit: env.AUTH_RATE_LIMIT_MAX, standardHeaders: "draft-7", legacyHeaders: false }));
   app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapi));
   app.get("/openapi.json", (_req, res) => res.json(openapi));
-  app.get("/health", (_req, res) => res.json({ status: "ok", timestamp: new Date().toISOString() }));
+  const healthHandler = (_req: express.Request, res: express.Response) => res.json({ status: "ok", timestamp: new Date().toISOString() });
+  app.get("/health", healthHandler);
+  app.get("/api/health", healthHandler);
   app.get("/healthz", (_req, res) => res.json({ status: "ok" }));
-  app.get("/readyz", async (_req, res, next) => {
+  app.get("/api/healthz", (_req, res) => res.json({ status: "ok" }));
+  const readyHandler = async (_req: express.Request, res: express.Response, next: express.NextFunction) => {
     try { await db.collection("_health").limit(1).get(); res.json({ status: "ready" }); } catch (error) { next(error); }
-  });
+  };
+  app.get("/readyz", readyHandler);
+  app.get("/api/readyz", readyHandler);
   app.use(auditLog);
   app.use("/api", routes);
   app.use((_req, res) => res.status(404).json({ success: false, error: { code: "NOT_FOUND", message: "Route not found" } }));
