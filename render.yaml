@@ -24,7 +24,9 @@ services:
         value: admin@school.local
       - key: ADMIN_PASSWORD
         generateValue: true
+      - key: APP_BASE_URL
+        value: https://school-management-1-iegg.onrender.com
       - key: CORS_ORIGINS
-        value: "*"
+        value: https://school-management-1-iegg.onrender.com,http://localhost:5173,*
       - key: SEED_DEMO_DATA
         value: "false"
