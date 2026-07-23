@@ -1,4 +1,4 @@
-﻿import { Request, Response, NextFunction } from "express";
+import { Request, Response, NextFunction } from "express";
 import { AppError } from "../utils/errors";
 import { logger } from "../config/logger";
 import { Sentry } from "../observability/sentry";
@@ -8,10 +8,10 @@ export function errorHandler(err: any, req: Request, res: Response, next: NextFu
 
   const statusCode = err.statusCode || 500;
   const code = err.code || "INTERNAL_ERROR";
-  const message = err.isOperational ? err.message : "Internal server error";
+  const message = err.message || "Internal server error";
 
   if (statusCode >= 500) {
-    logger.error({ err, requestId: (req as Request & { id?: string }).id }, "Request failed");
+    logger.error({ err, requestId: (req as Request & { id?: string }).id }, "Request failed: " + message);
     Sentry.captureException(err);
   }
 
