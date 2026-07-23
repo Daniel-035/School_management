@@ -76,7 +76,7 @@ class ApiClient {
 
   static const String defaultBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://school-management-74ecc.web.app/api',
+    defaultValue: 'https://school-management-b28r.onrender.com/api',
   );
   static const String _tokenKey = 'staff_app.auth_token';
   static const String _refreshTokenKey = 'staff_app.refresh_token';

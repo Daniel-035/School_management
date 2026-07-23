@@ -14,7 +14,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": {
-        target: "https://school-management-74ecc.web.app",
+        target: "https://school-management-b28r.onrender.com",
         changeOrigin: true,
       },
     },
