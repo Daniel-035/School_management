@@ -1,4 +1,4 @@
-﻿import { env } from "../config/env";
+import { env } from "../config/env";
 import { userRepository, UserRow } from "../repositories/user.repository";
 import { UnauthorizedError, NotFoundError, ConflictError, AppError } from "../utils/errors";
 import { revokeRefreshTokens, deleteFirebaseUser } from "./credential.service";
@@ -31,8 +31,36 @@ function sanitizeUser(row: UserRow): UserRow {
   return row;
 }
 
-async function loadActiveUser(uid: string): Promise<UserRow> {
-  const user = await userRepository.findById(uid);
+async function loadActiveUser(uid: string, identifier?: string): Promise<UserRow> {
+  let user = await userRepository.findById(uid);
+  if (!user && identifier) {
+    const norm = identifier.trim().toLowerCase();
+    user = await userRepository.findByEmail(norm);
+    if (!user && !norm.includes("@")) {
+      user = await userRepository.findByUsername(norm);
+    }
+    if (!user) {
+      const { studentRepository } = await import("../repositories/student.repository");
+      const { UserRole } = await import("../types");
+      let student = await studentRepository.findByEmail(norm);
+      if (!student && !norm.includes("@")) {
+        student = await studentRepository.findByUsername(norm);
+      }
+      if (student) {
+        user = await userRepository.createWithId(uid, {
+          name: student.name,
+          email: student.email ?? `${student.username ?? "student"}@student.school.internal`,
+          role: UserRole.Student,
+          status: student.status ?? "active",
+          firstName: student.firstName ?? student.name.split(" ")[0],
+          lastName: student.lastName ?? student.name.split(" ").slice(1).join(" "),
+          username: student.username ?? student.name.toLowerCase().replace(/[^a-z.]/g, ""),
+          subjectIds: [],
+          isClassTeacher: false,
+        });
+      }
+    }
+  }
   if (!user) throw new UnauthorizedError("Account is not provisioned in this application");
   if (user.status !== "active") throw new UnauthorizedError("Account is inactive");
   return user;
@@ -71,9 +99,25 @@ async function refreshWithSecureToken(refreshToken: string): Promise<TokenRefres
   return (await response.json()) as TokenRefreshResponse;
 }
 
-export async function login(email: string, password: string) {
+export async function login(identifier: string, password: string) {
+  let email = identifier.trim();
+  if (!email.includes("@")) {
+    const userByUsername = await userRepository.findByUsername(email);
+    if (userByUsername) {
+      email = userByUsername.email;
+    } else {
+      const { studentRepository } = await import("../repositories/student.repository");
+      const studentByUsername = await studentRepository.findByUsername(email);
+      if (studentByUsername && studentByUsername.email) {
+        email = studentByUsername.email;
+      } else {
+        email = `${email.toLowerCase()}@student.school.internal`;
+      }
+    }
+  }
+
   const session = await signInWithPassword(email, password);
-  const user = await loadActiveUser(session.localId);
+  const user = await loadActiveUser(session.localId, identifier);
   return tokenResult(user, session.idToken, session.refreshToken);
 }
 

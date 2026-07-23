@@ -37,8 +37,10 @@ export async function createStudent(data: {
   const password = generatePassword();
   const studentEmail = data.email && data.email.trim() !== "" ? data.email.trim() : `${username}@student.school.internal`;
 
+  let uid = "";
   try {
-    await provisionUser({ email: studentEmail, displayName: name, password });
+    const res = await provisionUser({ email: studentEmail, displayName: name, password });
+    uid = res.uid;
   } catch {
     // If provisioning is bypassed or fails, continue saving student profile
   }
@@ -64,6 +66,28 @@ export async function createStudent(data: {
     profilePicturePath: data.profilePicturePath,
     status: "active",
   });
+
+  if (uid) {
+    const { userRepository } = await import("../repositories/user.repository");
+    const { UserRole } = await import("../types");
+    await userRepository.createWithId(uid, {
+      name,
+      email: studentEmail,
+      role: UserRole.Student,
+      status: "active",
+      firstName: data.firstName,
+      lastName: data.lastName,
+      username,
+      phone: data.phone,
+      governmentId: data.governmentId,
+      address: data.address,
+      dateOfBirth: data.dateOfBirth,
+      gender: data.gender,
+      profilePicturePath: data.profilePicturePath,
+      subjectIds: [],
+      isClassTeacher: false,
+    }).catch(() => {});
+  }
 
   return {
     student,

@@ -2,6 +2,7 @@ export enum UserRole {
   Admin = "admin",
   Staff = "staff",
   Parent = "parent",
+  Student = "student",
 }
 
 export type Gender = "male" | "female" | "other";

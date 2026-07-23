@@ -52,6 +52,11 @@ class UserRepository {
     return snapshot.empty ? undefined : fromDocument<UserRow>(snapshot.docs[0]);
   }
 
+  async findByUsername(username: string): Promise<UserRow | undefined> {
+    const snapshot = await db.collection(COLLECTION).where("username", "==", username.trim().toLowerCase()).limit(1).get();
+    return snapshot.empty ? undefined : fromDocument<UserRow>(snapshot.docs[0]);
+  }
+
   findById(id: string) { return findById<UserRow>(COLLECTION, id); }
 
   findAll(filter?: { role?: UserRole; status?: string }) {

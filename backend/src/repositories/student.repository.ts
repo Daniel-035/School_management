@@ -24,6 +24,14 @@ class StudentRepository {
   }
 
   findById(id: string) { return findById<Student>(COLLECTION, id); }
+  async findByEmail(email: string): Promise<Student | undefined> {
+    const snapshot = await (await import("../config/firebase")).db.collection(COLLECTION).where("email", "==", email.trim().toLowerCase()).limit(1).get();
+    return snapshot.empty ? undefined : (await import("./firestore.repository")).fromDocument<Student>(snapshot.docs[0]);
+  }
+  async findByUsername(username: string): Promise<Student | undefined> {
+    const snapshot = await (await import("../config/firebase")).db.collection(COLLECTION).where("username", "==", username.trim().toLowerCase()).limit(1).get();
+    return snapshot.empty ? undefined : (await import("./firestore.repository")).fromDocument<Student>(snapshot.docs[0]);
+  }
   create(data: Omit<Student, "id" | "createdAt" | "updatedAt">) { return create<Student>(COLLECTION, data); }
   update(id: string, data: Partial<Student>) { return update<Student>(COLLECTION, id, data); }
   delete(id: string) { return remove(COLLECTION, id); }

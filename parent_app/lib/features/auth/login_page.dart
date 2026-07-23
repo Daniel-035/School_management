@@ -48,10 +48,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _signIn({String? email, String? password}) async {
+    if (email == null && !(_formKey.currentState?.validate() ?? false)) return;
     final formEmail = email ?? _emailCtrl.text.trim();
     final formPassword = password ?? _passCtrl.text;
     if (formEmail.isEmpty || formPassword.isEmpty) {
-      setState(() => _error = 'Please enter your email and password.');
+      setState(() => _error = 'Please enter your email/username and password.');
       return;
     }
     setState(() {
@@ -143,13 +144,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       controller: _emailCtrl,
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
-                      autofillHints: const [AutofillHints.email],
+                      autofillHints: const [AutofillHints.email, AutofillHints.username],
                       decoration: const InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: Icon(Icons.mail_outline_rounded),
+                        labelText: 'Email or Username',
+                        prefixIcon: Icon(Icons.person_outline_rounded),
                       ),
-                      validator: (v) => (v == null || !v.contains('@'))
-                          ? 'Enter a valid email'
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Please enter your email or username'
                           : null,
                     ),
                     const SizedBox(height: 12),
