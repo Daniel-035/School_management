@@ -10,14 +10,16 @@ function parseServiceAccount(value: string): ServiceAccount {
     const parsed = JSON.parse(value) as Record<string, unknown>;
     const projectId = parsed.project_id;
     const clientEmail = parsed.client_email;
-    const privateKey = parsed.private_key;
+    const rawPrivateKey = parsed.private_key;
 
-    if (typeof projectId !== "string" || typeof clientEmail !== "string" || typeof privateKey !== "string") {
+    if (typeof projectId !== "string" || typeof clientEmail !== "string" || typeof rawPrivateKey !== "string") {
       throw new Error("project_id, client_email, and private_key are required");
     }
     if (env.FIRESTORE_PROJECT_ID && env.FIRESTORE_PROJECT_ID !== projectId) {
       throw new Error("FIRESTORE_PROJECT_ID does not match the service account project_id");
     }
+
+    const privateKey = rawPrivateKey.replace(/\\n/g, "\n");
 
     return { projectId, clientEmail, privateKey };
   } catch (error) {
