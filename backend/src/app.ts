@@ -30,7 +30,7 @@ export function createApp(): Application {
       !origin
         || corsOrigins.includes(origin)
         || /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(origin)
-        || /^https:\/\/[a-z0-9-]+\.(?:web\.app|firebaseapp\.com)$/.test(origin),
+        || /^https:\/\/[a-z0-9-]+\.(?:web\.app|firebaseapp\.com|onrender\.com)$/.test(origin),
     ),
     credentials: true,
   }));
