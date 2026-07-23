@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class AppConstants {
   AppConstants._();
 
-  static const String appName = 'School Companion';
+  static const String appName = 'OmniSchool Guardian';
   static const String tagline = 'Stay close to your child\'s day';
 
   static const Color positiveColor = Color(0xFF1F9D55);

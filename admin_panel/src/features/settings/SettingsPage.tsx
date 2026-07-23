@@ -64,10 +64,10 @@ interface SchoolProfile {
 }
 
 const defaultProfile: SchoolProfile = {
-  name: "EduConnect Public School",
+  name: "OmniSchool International",
   academicYear: "2025-26",
   address: "123 School Lane, Bengaluru, KA",
-  contactEmail: "office@educonnect.school",
+  contactEmail: "office@omnischool.edu",
   contactPhone: "+91 80 1234 5678",
 };
 

@@ -29,8 +29,8 @@ export function Sidebar() {
           <GraduationCap className="h-5 w-5" />
         </div>
         <div>
-          <p className="text-sm font-semibold leading-tight">EduConnect</p>
-          <p className="text-xs text-muted-foreground">Admin Panel</p>
+          <p className="text-sm font-semibold leading-tight">OmniSchool</p>
+          <p className="text-xs text-muted-foreground">Central Admin</p>
         </div>
       </div>
       <nav className="flex-1 space-y-1 px-3 py-4">

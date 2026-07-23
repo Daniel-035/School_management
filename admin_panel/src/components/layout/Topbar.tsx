@@ -16,7 +16,7 @@ const titleMap: Record<string, string> = {
 export function Topbar() {
   const location = useLocation();
   const { user, logout } = useAuth();
-  const title = titleMap[location.pathname] ?? "EduConnect";
+  const title = titleMap[location.pathname] ?? "OmniSchool Central";
 
   return (
     <header className="flex h-16 items-center justify-between border-b bg-card px-6">

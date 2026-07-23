@@ -39,7 +39,7 @@ export function createApp(): Application {
   app.use("/api/auth", rateLimit({ windowMs: env.AUTH_RATE_LIMIT_WINDOW_MS, limit: env.AUTH_RATE_LIMIT_MAX, standardHeaders: "draft-7", legacyHeaders: false }));
   app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapi));
   app.get("/openapi.json", (_req, res) => res.json(openapi));
-  app.get("/", (_req, res) => res.json({ status: "ok", name: "EduConnect API", docs: "/docs", health: "/health" }));
+  app.get("/", (_req, res) => res.json({ status: "ok", name: "OmniSchool API", docs: "/docs", health: "/health" }));
   const healthHandler = (_req: express.Request, res: express.Response) => res.json({ status: "ok", timestamp: new Date().toISOString() });
   app.get("/health", healthHandler);
   app.get("/api/health", healthHandler);

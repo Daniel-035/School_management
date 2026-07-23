@@ -42,7 +42,7 @@ export function LoginPage() {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
             <GraduationCap className="h-6 w-6" />
           </div>
-          <CardTitle className="text-2xl">EduConnect Admin</CardTitle>
+          <CardTitle className="text-2xl">OmniSchool Central</CardTitle>
           <CardDescription>
             Sign in to manage your school operations
           </CardDescription>

@@ -1,10 +1,8 @@
-# School Management App
+# OmniSchool Management Suite
 
-This project contains three applications:
-- An admin panel for school staff.
-- A mobile app for school staff.
-- A mobile app for parents and guardians.
+This project contains three core applications in the **OmniSchool** ecosystem:
+- **OmniSchool Central**: Web admin panel for school administrators.
+- **OmniSchool Educator**: Mobile app for teachers and school staff.
+- **OmniSchool Guardian**: Mobile app for parents and legal guardians.
 
-The project is built using Flutter and Dart.
-
-what more needed to add to the code to make it functional and user-friendly?
+Powered by a Node.js/Express backend with Firestore database.

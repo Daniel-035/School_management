@@ -1,6 +1,6 @@
 export const openapi = {
   openapi: "3.0.3",
-  info: { title: "EduConnect API", version: "1.0.0", description: "School management API" },
+  info: { title: "OmniSchool API", version: "1.0.0", description: "School management API" },
   servers: [{ url: "/api" }],
   components: { securitySchemes: { bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" } } },
   paths: {

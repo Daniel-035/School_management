@@ -78,11 +78,19 @@ export function DashboardPage() {
     date.setDate(date.getDate() - (6 - index));
     return {
       date: date.toISOString().slice(5, 10),
-      present: Math.max(0, data.students.length - index - 1),
-      absent: Math.max(0, index + 1),
+      present: 0,
+      absent: 0,
     };
   });
-  const perClassSeries = data.classes.map(cls => ({ name: cls.name, value: data.students.filter(student => student.classSectionId === cls.id).length }));
+  const hasAttendanceData = attendanceSeries.some(item => item.present > 0 || item.absent > 0);
+
+  const perClassSeries = data.classes
+    .map(cls => ({ name: cls.name, value: data.students.filter(student => student.classSectionId === cls.id).length }))
+    .filter(item => item.value > 0);
+
+  const feeSummaryData = summary as Awaited<ReturnType<typeof feeService.getSummary>>;
+  const hasFeeData = (feeSummaryData?.totalPaid ?? 0) > 0 || (feeSummaryData?.outstanding ?? 0) > 0;
+
   const activityFeed = [
     ...data.announcements.slice(0, 5).map(item => ({ id: `a-${item.id}`, type: "announcement" as const, title: item.title, date: item.publishedAt, label: item.audience.join(", ") })),
     ...data.events.slice(0, 5).map(item => ({ id: `e-${item.id}`, type: "event" as const, title: item.title, date: item.date, label: item.type.toUpperCase() })),
@@ -139,17 +147,21 @@ export function DashboardPage() {
             <CardDescription>Last 7 days of present vs absent</CardDescription>
           </CardHeader>
           <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={attendanceSeries}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="present" fill="#16a34a" name="Present" />
-                <Bar dataKey="absent" fill="#dc2626" name="Absent" />
-              </BarChart>
-            </ResponsiveContainer>
+            {!hasAttendanceData ? (
+              <EmptyState title="No Attendance Recorded" description="Attendance trends will populate here once daily attendance is recorded." />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={attendanceSeries}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="present" fill="#16a34a" name="Present" />
+                  <Bar dataKey="absent" fill="#dc2626" name="Absent" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -159,17 +171,21 @@ export function DashboardPage() {
             <CardDescription>Collected vs outstanding</CardDescription>
           </CardHeader>
           <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={[{ name: "Collection", collected: (summary as Awaited<ReturnType<typeof feeService.getSummary>>).totalPaid, outstanding: (summary as Awaited<ReturnType<typeof feeService.getSummary>>).outstanding }]}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="collected" fill="#16a34a" name="Collected" />
-                <Bar dataKey="outstanding" fill="#f59e0b" name="Outstanding" />
-              </BarChart>
-            </ResponsiveContainer>
+            {!hasFeeData ? (
+              <EmptyState title="No Fee Data" description="Fee collection metrics will appear here once fee structures are assigned." />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={[{ name: "Collection", collected: feeSummaryData.totalPaid, outstanding: feeSummaryData.outstanding }]}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="collected" fill="#16a34a" name="Collected" />
+                  <Bar dataKey="outstanding" fill="#f59e0b" name="Outstanding" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -179,15 +195,19 @@ export function DashboardPage() {
             <CardDescription>Students per class</CardDescription>
           </CardHeader>
           <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={perClassSeries} dataKey="value" nameKey="name" outerRadius={90}>
-                  {perClassSeries.map((entry, index) => <Cell key={entry.name} fill={["#2563eb", "#16a34a", "#dc2626", "#f59e0b", "#9333ea", "#0891b2"][index % 6]} />)}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+            {perClassSeries.length === 0 ? (
+              <EmptyState title="No Class Distribution" description="Class breakdown will appear here once students are enrolled in classes." />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={perClassSeries} dataKey="value" nameKey="name" outerRadius={90}>
+                    {perClassSeries.map((entry, index) => <Cell key={entry.name} fill={["#2563eb", "#16a34a", "#dc2626", "#f59e0b", "#9333ea", "#0891b2"][index % 6]} />)}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 

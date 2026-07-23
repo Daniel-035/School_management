@@ -1,4 +1,4 @@
-﻿import "dotenv/config";
+import "dotenv/config";
 import { z } from "zod";
 
 const serviceAccountSchema = z.string().transform((value, context) => {
@@ -34,7 +34,7 @@ const envSchema = z.object({
   SEED_DEMO_DATA: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
   ADMIN_EMAIL: z.string().email(),
   ADMIN_PASSWORD: z.string().min(8, "ADMIN_PASSWORD must contain at least 8 characters"),
-  APP_NAME: z.string().min(1).default("EduConnect"),
+  APP_NAME: z.string().min(1).default("OmniSchool"),
   APP_BASE_URL: z.string().url().default("http://localhost:5173"),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),

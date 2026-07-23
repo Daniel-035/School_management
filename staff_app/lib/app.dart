@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -43,7 +43,7 @@ class _StaffAppState extends State<StaffApp> {
       child: Consumer<LocaleController>(
         builder: (context, localeController, _) {
           return MaterialApp.router(
-            title: 'Staff App',
+            title: 'OmniSchool Educator',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.light(),
             locale: localeController.locale,
