@@ -12,10 +12,16 @@ const studentSchema = z.object({
   rollNumber: z.string().optional(),
   classSectionId: z.string().min(1),
   parentIds: z.array(z.string()).default([]),
+  governmentId: z.string().optional(),
+  email: z.string().optional(),
   phone: z.string().optional(),
   address: z.string().optional(),
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   gender: z.enum(["male", "female", "other"]).optional(),
+  fatherName: z.string().optional(),
+  fatherPhone: z.string().optional(),
+  motherName: z.string().optional(),
+  motherPhone: z.string().optional(),
   profilePicturePath: z.string().optional(),
 });
 
@@ -48,8 +54,8 @@ export const getStudent = asyncHandler(async (req: Request, res: Response) => {
 export const createStudent = asyncHandler(async (req: Request, res: Response) => {
   const parsed = studentSchema.safeParse(req.body);
   if (!parsed.success) throw new AppError("Invalid student payload", 400, "VALIDATION_ERROR");
-  const student = await studentService.createStudent(parsed.data as Parameters<typeof studentService.createStudent>[0]);
-  created(res, { student });
+  const result = await studentService.createStudent(parsed.data as Parameters<typeof studentService.createStudent>[0]);
+  created(res, result);
 });
 
 export const updateStudent = asyncHandler(async (req: Request, res: Response) => {

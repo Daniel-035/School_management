@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -26,7 +26,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { FieldError } from "@/components/ui/async-state";
 import { userService, type CreateUserPayload, type UpdateUserPayload } from "@/services/userService";
 import { academicService } from "@/services/academicService";
-import type { User, UserRole, Student, ClassSection, Subject } from "@/types";
+import type { User, UserRole, Student, Subject } from "@/types";
 import { queryKeys } from "@/lib/queryClient";
 import { Upload, X, Loader2 } from "lucide-react";
 
@@ -41,20 +41,42 @@ interface AddUserDialogProps {
   parents: User[];
 }
 
+export const DEFAULT_CLASS_OPTIONS = [
+  { id: "cs-nursery", name: "Nursery" },
+  { id: "cs-lkg", name: "L.KG" },
+  { id: "cs-ukg", name: "U.KG" },
+  { id: "cs-1a", name: "Class 1" },
+  { id: "cs-2a", name: "Class 2" },
+  { id: "cs-3a", name: "Class 3" },
+  { id: "cs-4a", name: "Class 4" },
+  { id: "cs-5a", name: "Class 5" },
+  { id: "cs-6a", name: "Class 6" },
+  { id: "cs-7a", name: "Class 7" },
+  { id: "cs-8a", name: "Class 8" },
+  { id: "cs-9a", name: "Class 9" },
+  { id: "cs-10a", name: "Class 10" },
+  { id: "cs-11a", name: "Class 11" },
+  { id: "cs-12a", name: "Class 12" },
+];
+
 const baseSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required"),
   lastName: z.string().trim().min(1, "Last name is required"),
-  email: z.string().trim().email("Enter a valid email"),
+  email: z.string().trim().optional(),
   phone: z.string().trim().optional(),
   address: z.string().trim().optional(),
   dateOfBirth: z.string().optional(),
   gender: z.enum(["male", "female", "other"]).optional(),
+  governmentId: z.string().trim().optional(),
 });
 
 const studentSchema = baseSchema.extend({
   rollNumber: z.string().trim().min(1, "Roll number is required"),
   classSectionId: z.string().min(1, "Select a class"),
-  parentId: z.string().min(1, "Select a parent"),
+  fatherName: z.string().trim().optional(),
+  fatherPhone: z.string().trim().optional(),
+  motherName: z.string().trim().optional(),
+  motherPhone: z.string().trim().optional(),
 });
 type StudentForm = z.infer<typeof studentSchema>;
 
@@ -71,7 +93,7 @@ type ParentForm = z.infer<typeof parentSchema>;
 
 type AnyForm = StudentForm & StaffForm & ParentForm;
 
-export function AddUserDialog({ open, onOpenChange, kind, editing, onSaved, parents }: AddUserDialogProps) {
+export function AddUserDialog({ open, onOpenChange, kind, editing, onSaved }: AddUserDialogProps) {
   const isStudent = kind === "student";
   const isStaff = kind === "staff";
   const role: UserRole = isStudent ? "parent" : kind;
@@ -79,15 +101,24 @@ export function AddUserDialog({ open, onOpenChange, kind, editing, onSaved, pare
   const { data: classes = [] } = useQuery({ queryKey: queryKeys.classes, queryFn: academicService.getClasses });
   const { data: subjects = [] } = useQuery({ queryKey: queryKeys.subjects, queryFn: academicService.getSubjects });
 
-  const activeParents = parents.filter((p) => p.role === "parent" && p.status === "active");
+  const classOptions = useMemo(() => {
+    const list = [...DEFAULT_CLASS_OPTIONS];
+    for (const c of classes) {
+      if (!list.some((item) => item.id === c.id || item.name === c.name)) {
+        list.push({ id: c.id, name: c.name || `Grade ${c.grade} - ${c.section}` });
+      }
+    }
+    return list;
+  }, [classes]);
 
   const schema = isStudent ? studentSchema : isStaff ? staffSchema : parentSchema;
   const { register, control, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<AnyForm>({
     resolver: zodResolver(schema) as never,
     defaultValues: {
       firstName: "", lastName: "", email: "", phone: "", address: "",
-      dateOfBirth: "", gender: undefined,
-      rollNumber: "", classSectionId: "", parentId: "",
+      dateOfBirth: "", gender: undefined, governmentId: "",
+      rollNumber: "", classSectionId: "",
+      fatherName: "", fatherPhone: "", motherName: "", motherPhone: "",
       department: "", subjectIds: [], isClassTeacher: false, classTeacherForId: "",
     },
   });
@@ -106,15 +137,24 @@ export function AddUserDialog({ open, onOpenChange, kind, editing, onSaved, pare
       const common = {
         firstName: "firstName" in editing ? (ed.firstName as string ?? "") : editing.name.split(" ")[0] ?? "",
         lastName: "lastName" in editing ? (ed.lastName as string ?? "") : editing.name.split(" ").slice(1).join(" ") ?? "",
-        email: "email" in editing ? (editing as User).email ?? "" : "",
+        email: ("email" in editing ? (editing as User).email : "") ?? "",
         phone: (ed.phone as string ?? ""),
         address: (ed.address as string ?? ""),
         dateOfBirth: (ed.dateOfBirth as string ?? ""),
         gender: (ed.gender as "male" | "female" | "other" | undefined),
+        governmentId: (ed.governmentId as string ?? ""),
       };
       if (isStudent && "classSectionId" in editing) {
         const s = editing as Student;
-        reset({ ...common, rollNumber: s.rollNumber ?? "", classSectionId: s.classSectionId, parentId: s.parentIds[0] ?? "" });
+        reset({
+          ...common,
+          rollNumber: s.rollNumber ?? "",
+          classSectionId: s.classSectionId,
+          fatherName: s.fatherName ?? "",
+          fatherPhone: s.fatherPhone ?? "",
+          motherName: s.motherName ?? "",
+          motherPhone: s.motherPhone ?? "",
+        });
       } else if (isStaff && "department" in editing) {
         const u = editing as User;
         reset({ ...common, department: u.department ?? "", subjectIds: u.subjectIds ?? [], isClassTeacher: u.isClassTeacher ?? false, classTeacherForId: u.classTeacherForId ?? "" });
@@ -146,19 +186,33 @@ export function AddUserDialog({ open, onOpenChange, kind, editing, onSaved, pare
     try {
       if (isStudent) {
         const payload = {
-          firstName: values.firstName, lastName: values.lastName,
-          rollNumber: values.rollNumber, classSectionId: values.classSectionId,
-          parentIds: [values.parentId],
-          phone: values.phone, address: values.address,
-          dateOfBirth: values.dateOfBirth || undefined, gender: values.gender,
+          firstName: values.firstName,
+          lastName: values.lastName,
+          rollNumber: values.rollNumber,
+          classSectionId: values.classSectionId,
+          governmentId: values.governmentId,
+          email: values.email,
+          phone: values.phone,
+          address: values.address,
+          dateOfBirth: values.dateOfBirth || undefined,
+          gender: values.gender,
+          fatherName: values.fatherName,
+          fatherPhone: values.fatherPhone,
+          motherName: values.motherName,
+          motherPhone: values.motherPhone,
           profilePicturePath: photoPath,
         };
         if (editing) await userService.updateStudent(editing.id, payload);
-        else await userService.createStudent(payload);
+        else {
+          const result = await userService.createStudent(payload);
+          if (result.provisionalPassword && result.username) {
+            toast.success(`Student credentials created. Username: ${result.username} | Password: ${result.provisionalPassword}`);
+          }
+        }
       } else {
         const payload: CreateUserPayload | UpdateUserPayload = {
           firstName: values.firstName, lastName: values.lastName,
-          email: values.email, role,
+          email: values.email || `${values.firstName.toLowerCase()}.${values.lastName.toLowerCase()}@school.internal`, role,
           phone: values.phone, address: values.address,
           dateOfBirth: values.dateOfBirth || undefined, gender: values.gender,
           profilePicturePath: photoPath,
@@ -192,7 +246,7 @@ export function AddUserDialog({ open, onOpenChange, kind, editing, onSaved, pare
           <DialogHeader>
             <DialogTitle>{editing ? "Edit" : "Add"} {kind === "staff" ? "Staff / Faculty" : kind[0].toUpperCase() + kind.slice(1)}</DialogTitle>
             <DialogDescription>
-              {editing ? "Update" : "Create"} {kind} profile. {isStudent ? "Login credentials are not generated for students." : "Username and password are auto-generated and emailed."}
+              {editing ? "Update" : "Create"} {kind} profile. {isStudent ? "Enter student and parents details." : "Username and password are auto-generated."}
             </DialogDescription>
           </DialogHeader>
 
@@ -239,27 +293,27 @@ export function AddUserDialog({ open, onOpenChange, kind, editing, onSaved, pare
           {/* Email & Phone */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Email *</Label>
+              <Label>Email Address {isStudent ? "(Optional)" : "*"}</Label>
               <Input type="email" {...register("email")} aria-invalid={Boolean(errors.email)} />
               <FieldError message={errors.email?.message} />
             </div>
             <div className="space-y-2">
-              <Label>Phone</Label>
-              <Input {...register("phone")} />
+              <Label>Phone number</Label>
+              <Input {...register("phone")} placeholder="Student Phone" />
             </div>
           </div>
 
-          {/* DOB & Gender */}
+          {/* Government ID & Gender */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Date of birth</Label>
-              <Input type="date" {...register("dateOfBirth")} />
+              <Label>Government ID</Label>
+              <Input {...register("governmentId")} placeholder="e.g. Aadhaar / Govt ID" />
             </div>
             <div className="space-y-2">
               <Label>Gender</Label>
               <Controller name="gender" control={control} render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select Gender" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="male">Male</SelectItem>
                     <SelectItem value="female">Female</SelectItem>
@@ -270,49 +324,69 @@ export function AddUserDialog({ open, onOpenChange, kind, editing, onSaved, pare
             </div>
           </div>
 
-          {/* Address */}
-          <div className="space-y-2">
-            <Label>Address</Label>
-            <Input {...register("address")} />
+          {/* DOB & Address */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Date of birth</Label>
+              <Input type="date" {...register("dateOfBirth")} />
+            </div>
+            <div className="space-y-2">
+              <Label>Address</Label>
+              <Input {...register("address")} />
+            </div>
           </div>
 
-          {/* Role-specific fields */}
+          {/* Student Role Fields (Class & Parent Info) */}
           {isStudent && (
             <>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Roll number *</Label>
-                  <Input {...register("rollNumber")} aria-invalid={Boolean(errors.rollNumber)} />
-                  <FieldError message={errors.rollNumber?.message} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Class *</Label>
-                  <Controller name="classSectionId" control={control} render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
-                      <SelectContent>
-                        {classes.map((c: ClassSection) => (
-                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )} />
-                  <FieldError message={errors.classSectionId?.message} />
+              <div className="border-t pt-3 mt-3">
+                <h4 className="font-semibold text-sm mb-3">Academic Info</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Roll number *</Label>
+                    <Input {...register("rollNumber")} aria-invalid={Boolean(errors.rollNumber)} />
+                    <FieldError message={errors.rollNumber?.message} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Class *</Label>
+                    <Controller name="classSectionId" control={control} render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
+                        <SelectContent>
+                          {classOptions.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )} />
+                    <FieldError message={errors.classSectionId?.message} />
+                  </div>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>Parent / Guardian *</Label>
-                <Controller name="parentId" control={control} render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger><SelectValue placeholder="Select parent" /></SelectTrigger>
-                    <SelectContent>
-                      {activeParents.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>{p.name} ({p.email})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )} />
-                <FieldError message={errors.parentId?.message} />
+
+              {/* Parents Information */}
+              <div className="border-t pt-3 mt-3 space-y-3">
+                <h4 className="font-semibold text-sm">Parents Information</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Father's Name</Label>
+                    <Input {...register("fatherName")} placeholder="Father's Name" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Father's Phone</Label>
+                    <Input {...register("fatherPhone")} placeholder="Father's Phone Number" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Mother's Name</Label>
+                    <Input {...register("motherName")} placeholder="Mother's Name" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Mother's Phone</Label>
+                    <Input {...register("motherPhone")} placeholder="Mother's Phone Number" />
+                  </div>
+                </div>
               </div>
             </>
           )}
@@ -355,7 +429,7 @@ export function AddUserDialog({ open, onOpenChange, kind, editing, onSaved, pare
                     <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
                       <SelectContent>
-                        {classes.map((c: ClassSection) => (
+                        {classOptions.map((c) => (
                           <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -369,7 +443,7 @@ export function AddUserDialog({ open, onOpenChange, kind, editing, onSaved, pare
           {!isStudent && !editing && (
             <div className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
               <p className="font-medium text-foreground">Auto-generated credentials</p>
-              <p>Username and password will be generated automatically and sent to the email above. You don't need to set them manually.</p>
+              <p>Username and password will be generated automatically and sent to the email above.</p>
             </div>
           )}
 

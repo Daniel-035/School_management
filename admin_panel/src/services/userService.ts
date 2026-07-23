@@ -8,6 +8,7 @@ export interface CreateUserPayload {
   role: UserRole;
   status?: "active" | "inactive";
   phone?: string;
+  governmentId?: string;
   address?: string;
   dateOfBirth?: string;
   gender?: "male" | "female" | "other";
@@ -27,11 +28,17 @@ export interface CreateStudentPayload {
   lastName: string;
   rollNumber?: string;
   classSectionId: string;
-  parentIds: string[];
+  parentIds?: string[];
+  governmentId?: string;
+  email?: string;
   phone?: string;
   address?: string;
   dateOfBirth?: string;
   gender?: "male" | "female" | "other";
+  fatherName?: string;
+  fatherPhone?: string;
+  motherName?: string;
+  motherPhone?: string;
   profilePicturePath?: string;
 }
 
@@ -65,9 +72,8 @@ export const userService = {
     return result.students;
   },
 
-  async createStudent(payload: CreateStudentPayload): Promise<Student> {
-    const result = await api.post<{ student: Student }>("/students", payload);
-    return result.student;
+  async createStudent(payload: CreateStudentPayload): Promise<{ student: Student; username?: string; provisionalPassword?: string }> {
+    return api.post<{ student: Student; username?: string; provisionalPassword?: string }>("/students", payload);
   },
 
   async updateStudent(id: string, payload: Partial<CreateStudentPayload & { status: Student["status"] }>): Promise<Student> {

@@ -16,11 +16,21 @@ class ClassRepository {
     ];
     await seedCollection<Subject>(SUBJECT_COLLECTION, subjects);
     const subjectIds = subjects.map(subject => subject.id);
-    await seedCollection<ClassSection>(CLASS_COLLECTION, [
-      { id: "cs-5a", grade: "5", section: "A", name: "Class 5A", subjectIds, createdAt: now, updatedAt: now },
-      { id: "cs-6b", grade: "6", section: "B", name: "Class 6B", subjectIds, createdAt: now, updatedAt: now },
-      { id: "cs-7b", grade: "7", section: "B", name: "Class 7B", subjectIds, createdAt: now, updatedAt: now },
-    ]);
+    const standardGrades = [
+      { id: "cs-nursery", grade: "Nursery", section: "A", name: "Nursery" },
+      { id: "cs-lkg", grade: "L.KG", section: "A", name: "L.KG" },
+      { id: "cs-ukg", grade: "U.KG", section: "A", name: "U.KG" },
+      ...Array.from({ length: 12 }, (_, i) => {
+        const grade = String(i + 1);
+        return { id: `cs-${grade}a`, grade, section: "A", name: `Class ${grade}` };
+      }),
+    ];
+    await seedCollection<ClassSection>(CLASS_COLLECTION, standardGrades.map(c => ({
+      ...c,
+      subjectIds,
+      createdAt: now,
+      updatedAt: now,
+    })));
   }
 
   findAllClasses() { return findAll<ClassSection>(CLASS_COLLECTION); }

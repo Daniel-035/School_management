@@ -2,6 +2,7 @@ import { Gender } from "../types";
 import { studentRepository } from "../repositories/student.repository";
 import { classRepository } from "../repositories/class.repository";
 import { NotFoundError } from "../utils/errors";
+import { generatePassword, generateUsername, provisionUser } from "./credential.service";
 
 export async function listStudents(filter?: { classSectionId?: string; parentId?: string }) {
   return studentRepository.findAll(filter);
@@ -18,28 +19,57 @@ export async function createStudent(data: {
   lastName: string;
   rollNumber?: string;
   classSectionId: string;
-  parentIds: string[];
+  parentIds?: string[];
+  governmentId?: string;
+  email?: string;
   phone?: string;
   address?: string;
   dateOfBirth?: string;
   gender?: Gender;
+  fatherName?: string;
+  fatherPhone?: string;
+  motherName?: string;
+  motherPhone?: string;
   profilePicturePath?: string;
 }) {
   const name = `${data.firstName} ${data.lastName}`.trim();
-  return studentRepository.create({
+  const username = generateUsername(data.firstName, data.lastName);
+  const password = generatePassword();
+  const studentEmail = data.email && data.email.trim() !== "" ? data.email.trim() : `${username}@student.school.internal`;
+
+  try {
+    await provisionUser({ email: studentEmail, displayName: name, password });
+  } catch {
+    // If provisioning is bypassed or fails, continue saving student profile
+  }
+
+  const student = await studentRepository.create({
     name,
     firstName: data.firstName,
     lastName: data.lastName,
+    username,
     rollNumber: data.rollNumber,
     classSectionId: data.classSectionId,
-    parentIds: data.parentIds,
+    parentIds: data.parentIds ?? [],
+    governmentId: data.governmentId,
+    email: studentEmail,
     phone: data.phone,
     address: data.address,
     dateOfBirth: data.dateOfBirth,
     gender: data.gender,
+    fatherName: data.fatherName,
+    fatherPhone: data.fatherPhone,
+    motherName: data.motherName,
+    motherPhone: data.motherPhone,
     profilePicturePath: data.profilePicturePath,
     status: "active",
   });
+
+  return {
+    student,
+    username,
+    provisionalPassword: password,
+  };
 }
 
 export async function updateStudent(id: string, data: Partial<{
@@ -48,11 +78,17 @@ export async function updateStudent(id: string, data: Partial<{
   name: string;
   rollNumber?: string;
   classSectionId: string;
-  parentIds: string[];
+  parentIds?: string[];
+  governmentId?: string;
+  email?: string;
   phone?: string;
   address?: string;
   dateOfBirth?: string;
   gender?: Gender;
+  fatherName?: string;
+  fatherPhone?: string;
+  motherName?: string;
+  motherPhone?: string;
   profilePicturePath?: string;
   status: "active" | "inactive";
 }>) {

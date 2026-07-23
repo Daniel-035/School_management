@@ -29,6 +29,7 @@ export async function createUser(data: {
   role: UserRole;
   status: "active" | "inactive";
   phone?: string;
+  governmentId?: string;
   address?: string;
   dateOfBirth?: string;
   gender?: Gender;
@@ -52,6 +53,7 @@ export async function createUser(data: {
     lastName: data.lastName,
     username,
     phone: data.phone,
+    governmentId: data.governmentId,
     address: data.address,
     dateOfBirth: data.dateOfBirth,
     gender: data.gender,
@@ -62,7 +64,7 @@ export async function createUser(data: {
     classTeacherForId: data.classTeacherForId,
   });
   const emailSent = await sendCredentialsEmail({ to: user.email, name: user.name, username, password });
-  return { user, username, provisionalPassword: emailSent ? undefined : password, emailSent };
+  return { user, username, provisionalPassword: password, emailSent };
 }
 
 export async function updateUser(id: string, data: Partial<{

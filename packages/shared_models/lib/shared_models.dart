@@ -108,6 +108,7 @@ class ClassSection {
 class Student {
   final String id;
   final String name;
+  final String username;
   final String rollNo;
   final String rollNumber;
   final String className;
@@ -116,10 +117,19 @@ class Student {
   final DateTime? dateOfBirth;
   final String status;
   final ClassSection classSection;
+  final String governmentId;
+  final String email;
+  final String phone;
+  final String gender;
+  final String fatherName;
+  final String fatherPhone;
+  final String motherName;
+  final String motherPhone;
 
   const Student({
     required this.id,
     required this.name,
+    this.username = '',
     this.rollNo = '',
     this.rollNumber = '',
     this.className = '',
@@ -128,6 +138,14 @@ class Student {
     this.dateOfBirth,
     this.status = 'active',
     this.classSection = const ClassSection(id: '', name: ''),
+    this.governmentId = '',
+    this.email = '',
+    this.phone = '',
+    this.gender = '',
+    this.fatherName = '',
+    this.fatherPhone = '',
+    this.motherName = '',
+    this.motherPhone = '',
   });
 
   String get initials {
@@ -153,6 +171,7 @@ class Student {
     return Student(
       id: id,
       name: (json['name'] ?? '').toString(),
+      username: (json['username'] ?? '').toString(),
       rollNo: rollNumber,
       rollNumber: rollNumber,
       className: resolvedClass.name,
@@ -164,12 +183,21 @@ class Student {
       dateOfBirth: _parseDate(json['dateOfBirth']),
       status: (json['status'] ?? 'active').toString(),
       classSection: resolvedClass,
+      governmentId: (json['governmentId'] ?? '').toString(),
+      email: (json['email'] ?? '').toString(),
+      phone: (json['phone'] ?? '').toString(),
+      gender: (json['gender'] ?? '').toString(),
+      fatherName: (json['fatherName'] ?? '').toString(),
+      fatherPhone: (json['fatherPhone'] ?? '').toString(),
+      motherName: (json['motherName'] ?? '').toString(),
+      motherPhone: (json['motherPhone'] ?? '').toString(),
     );
   }
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
+        'username': username,
         'rollNumber': rollNumber,
         'rollNo': rollNo,
         'className': className,
@@ -178,6 +206,14 @@ class Student {
         'dateOfBirth': dateOfBirth?.toIso8601String(),
         'status': status,
         'classSection': classSection.toJson(),
+        'governmentId': governmentId,
+        'email': email,
+        'phone': phone,
+        'gender': gender,
+        'fatherName': fatherName,
+        'fatherPhone': fatherPhone,
+        'motherName': motherName,
+        'motherPhone': motherPhone,
       };
 }
 

@@ -1,4 +1,4 @@
-﻿export enum UserRole {
+export enum UserRole {
   Admin = "admin",
   Staff = "staff",
   Parent = "parent",
@@ -11,6 +11,7 @@ export interface UserProfile {
   lastName: string;
   username: string;
   phone?: string;
+  governmentId?: string;
   address?: string;
   dateOfBirth?: string;
   gender?: Gender;
@@ -42,13 +43,20 @@ export interface Student {
   name: string;
   firstName?: string;
   lastName?: string;
+  username?: string;
   rollNumber?: string;
   classSectionId: string;
-  parentIds: string[];
+  parentIds?: string[];
+  governmentId?: string;
+  email?: string;
   phone?: string;
   address?: string;
   dateOfBirth?: string;
   gender?: Gender;
+  fatherName?: string;
+  fatherPhone?: string;
+  motherName?: string;
+  motherPhone?: string;
   profilePicturePath?: string;
   status: "active" | "inactive";
   createdAt: Date;

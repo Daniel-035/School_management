@@ -48,13 +48,21 @@ import { PaginationControls, TableControls, applyTableState } from "@/components
 import { downloadCsv } from "@/lib/csv";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryClient";
+import { DEFAULT_CLASS_OPTIONS } from "./AddUserDialog";
 
 const studentSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required"),
   lastName: z.string().trim().min(1, "Last name is required"),
   rollNumber: z.string().trim().min(1, "Roll number is required"),
   classSectionId: z.string().min(1, "Select a class"),
-  parentId: z.string().min(1, "Select a parent"),
+  governmentId: z.string().trim().optional(),
+  email: z.string().trim().optional(),
+  phone: z.string().trim().optional(),
+  gender: z.enum(["male", "female", "other"]).optional(),
+  fatherName: z.string().trim().optional(),
+  fatherPhone: z.string().trim().optional(),
+  motherName: z.string().trim().optional(),
+  motherPhone: z.string().trim().optional(),
 });
 type StudentForm = z.infer<typeof studentSchema>;
 
@@ -63,6 +71,8 @@ const userSchema = z.object({
   lastName: z.string().trim().min(1, "Last name is required"),
   email: z.string().trim().email("Enter a valid email"),
   phone: z.string().trim().optional(),
+  governmentId: z.string().trim().optional(),
+  gender: z.enum(["male", "female", "other"]).optional(),
   department: z.string().trim().optional(),
 });
 type UserForm = z.infer<typeof userSchema>;
@@ -112,7 +122,24 @@ export function UsersPage() {
   const [page, setPage] = useState(1);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
 
-  const studentForm = useForm<StudentForm>({ resolver: zodResolver(studentSchema), defaultValues: { firstName: "", lastName: "", rollNumber: "", classSectionId: "", parentId: "" } });
+  const classOptions = useMemo(() => {
+    const list = [...DEFAULT_CLASS_OPTIONS];
+    for (const c of classes) {
+      if (!list.some((item) => item.id === c.id || item.name === c.name)) {
+        list.push({ id: c.id, name: c.name || `Grade ${c.grade} - ${c.section}` });
+      }
+    }
+    return list;
+  }, [classes]);
+
+  const studentForm = useForm<StudentForm>({
+    resolver: zodResolver(studentSchema),
+    defaultValues: {
+      firstName: "", lastName: "", rollNumber: "", classSectionId: "",
+      governmentId: "", email: "", phone: "", gender: undefined,
+      fatherName: "", fatherPhone: "", motherName: "", motherPhone: "",
+    },
+  });
   const staffForm = useForm<UserForm>({ resolver: zodResolver(userSchema), defaultValues: { firstName: "", lastName: "", email: "", phone: "", department: "" } });
   const parentForm = useForm<ParentForm>({ resolver: zodResolver(parentSchema), defaultValues: { firstName: "", lastName: "", email: "", phone: "", address: "" } });
 
@@ -122,22 +149,20 @@ export function UsersPage() {
     return map;
   }, [students]);
 
-  const availableParents = parents.filter((p) => p.role === "parent" && p.status === "active");
-
   const sorters = {
     "name-asc": (a: Student | User, b: Student | User) => a.name.localeCompare(b.name),
     "name-desc": (a: Student | User, b: Student | User) => b.name.localeCompare(a.name),
     "created-desc": (a: Student | User, b: Student | User) => String(b.createdAt).localeCompare(String(a.createdAt)),
   };
+
   const studentTable = applyTableState(students, {
     search,
     filter: statusFilter,
     sort,
     page,
     searchText: row => {
-      const cls = classes.find((c) => c.id === row.classSectionId);
-      const className = cls ? (cls.name || `Grade ${cls.grade} - ${cls.section}`) : "";
-      return `${row.name} ${row.rollNumber ?? ""} ${className}`;
+      const clsName = classOptions.find((c) => c.id === row.classSectionId)?.name ?? "";
+      return `${row.name} ${row.rollNumber ?? ""} ${clsName} ${row.governmentId ?? ""} ${row.fatherName ?? ""} ${row.motherName ?? ""}`;
     },
     filterValue: row => row.status,
     sorters
@@ -159,7 +184,14 @@ export function UsersPage() {
       lastName: student.lastName ?? student.name.split(" ").slice(1).join(" ") ?? "",
       rollNumber: student.rollNumber ?? "",
       classSectionId: student.classSectionId,
-      parentId: student.parentIds[0] ?? "",
+      governmentId: student.governmentId ?? "",
+      email: student.email ?? "",
+      phone: student.phone ?? "",
+      gender: student.gender,
+      fatherName: student.fatherName ?? "",
+      fatherPhone: student.fatherPhone ?? "",
+      motherName: student.motherName ?? "",
+      motherPhone: student.motherPhone ?? "",
     });
     setStudentOpen(true);
   };
@@ -171,6 +203,8 @@ export function UsersPage() {
       lastName: user.lastName ?? user.name.split(" ").slice(1).join(" ") ?? "",
       email: user.email,
       phone: user.phone ?? "",
+      governmentId: user.governmentId ?? "",
+      gender: user.gender,
       department: user.department ?? "",
     });
     setStaffOpen(true);
@@ -190,23 +224,73 @@ export function UsersPage() {
 
   const submitStudent = studentForm.handleSubmit(async (values) => {
     try {
-      const payload = { firstName: values.firstName, lastName: values.lastName, rollNumber: values.rollNumber, classSectionId: values.classSectionId, parentIds: [values.parentId] };
-      if (editingStudent) await userService.updateStudent(editingStudent.id, payload); else await userService.createStudent(payload);
-      await reload();
-      toast.success(editingStudent ? "Student updated" : "Student created");
-      resetStudent();
+      const payload = {
+        firstName: values.firstName,
+        lastName: values.lastName,
+        rollNumber: values.rollNumber,
+        classSectionId: values.classSectionId,
+        governmentId: values.governmentId,
+        email: values.email,
+        phone: values.phone,
+        gender: values.gender,
+        fatherName: values.fatherName,
+        fatherPhone: values.fatherPhone,
+        motherName: values.motherName,
+        motherPhone: values.motherPhone,
+      };
+      if (editingStudent) {
+        await userService.updateStudent(editingStudent.id, payload);
+        await reload();
+        toast.success("Student updated");
+        resetStudent();
+      } else {
+        const result = await userService.createStudent(payload);
+        await reload();
+        resetStudent();
+        setCredentials({
+          user: {
+            id: result.student.id,
+            name: result.student.name,
+            email: result.student.email || `${result.username}@student.school.internal`,
+            role: "parent" as never,
+            status: "active",
+            createdAt: String(result.student.createdAt),
+            updatedAt: String(result.student.updatedAt),
+          },
+          username: result.username,
+          provisionalPassword: result.provisionalPassword,
+          emailSent: false,
+        });
+      }
     } catch (reason) { toast.error(reason instanceof Error ? reason.message : "Unable to save student"); }
   });
 
   const submitStaff = staffForm.handleSubmit(async (values) => {
     try {
       if (editingStaff) {
-        await userService.updateUser(editingStaff.id, { firstName: values.firstName, lastName: values.lastName, email: values.email, phone: values.phone, department: values.department });
+        await userService.updateUser(editingStaff.id, {
+          firstName: values.firstName,
+          lastName: values.lastName,
+          email: values.email,
+          phone: values.phone,
+          governmentId: values.governmentId,
+          gender: values.gender,
+          department: values.department,
+        });
         await reload();
         toast.success("Staff member updated");
         resetStaff();
       } else {
-        const result = await userService.createUser({ firstName: values.firstName, lastName: values.lastName, email: values.email, role: "staff", phone: values.phone, department: values.department });
+        const result = await userService.createUser({
+          firstName: values.firstName,
+          lastName: values.lastName,
+          email: values.email,
+          role: "staff",
+          phone: values.phone,
+          governmentId: values.governmentId,
+          gender: values.gender,
+          department: values.department,
+        });
         await reload();
         resetStaff();
         setCredentials(result);
@@ -348,7 +432,7 @@ export function UsersPage() {
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-medium">Students</h3>
-            <p className="text-sm text-muted-foreground">All enrolled students</p>
+            <p className="text-sm text-muted-foreground">All enrolled students with embedded parents and academic info.</p>
           </div>
           <Dialog open={studentOpen} onOpenChange={setStudentOpen}>
             <DialogTrigger asChild>
@@ -357,51 +441,106 @@ export function UsersPage() {
                 Add Student
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <form onSubmit={submitStudent} className="space-y-4" noValidate>
                 <DialogHeader>
                   <DialogTitle>{editingStudent ? "Edit" : "Add"} Student</DialogTitle>
-                  <DialogDescription>{editingStudent ? "Update" : "Create"} student profile.</DialogDescription>
+                  <DialogDescription>{editingStudent ? "Update" : "Create"} student profile and parent details.</DialogDescription>
                 </DialogHeader>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <Label>First Name</Label>
+                    <Label>First Name *</Label>
                     <Input {...studentForm.register("firstName")} aria-invalid={Boolean(studentForm.formState.errors.firstName)} />
                     <FieldError message={studentForm.formState.errors.firstName?.message} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Last Name</Label>
+                    <Label>Last Name *</Label>
                     <Input {...studentForm.register("lastName")} aria-invalid={Boolean(studentForm.formState.errors.lastName)} />
                     <FieldError message={studentForm.formState.errors.lastName?.message} />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Roll No</Label>
-                  <Input {...studentForm.register("rollNumber")} aria-invalid={Boolean(studentForm.formState.errors.rollNumber)} />
-                  <FieldError message={studentForm.formState.errors.rollNumber?.message} />
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Email Address</Label>
+                    <Input type="email" {...studentForm.register("email")} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Student Phone</Label>
+                    <Input {...studentForm.register("phone")} />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Class</Label>
-                  <Controller name="classSectionId" control={studentForm.control} render={({ field }) => <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
-                    <SelectContent>
-                      {classes.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name || `Grade ${c.grade} - ${c.section}`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>} />
-                  <FieldError message={studentForm.formState.errors.classSectionId?.message} />
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Government ID</Label>
+                    <Input {...studentForm.register("governmentId")} placeholder="e.g. Aadhaar / Govt ID" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Gender</Label>
+                    <Controller name="gender" control={studentForm.control} render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger><SelectValue placeholder="Select Gender" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )} />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Parent</Label>
-                  <Controller name="parentId" control={studentForm.control} render={({ field }) => <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger><SelectValue placeholder="Select parent" /></SelectTrigger>
-                    <SelectContent>{availableParents.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                  </Select>} />
-                  <FieldError message={studentForm.formState.errors.parentId?.message} />
+
+                <div className="border-t pt-3 space-y-3">
+                  <h4 className="font-semibold text-sm">Academic Details</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Roll No *</Label>
+                      <Input {...studentForm.register("rollNumber")} aria-invalid={Boolean(studentForm.formState.errors.rollNumber)} />
+                      <FieldError message={studentForm.formState.errors.rollNumber?.message} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Class *</Label>
+                      <Controller name="classSectionId" control={studentForm.control} render={({ field }) => <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
+                        <SelectContent>
+                          {classOptions.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>} />
+                      <FieldError message={studentForm.formState.errors.classSectionId?.message} />
+                    </div>
+                  </div>
                 </div>
+
+                <div className="border-t pt-3 space-y-3">
+                  <h4 className="font-semibold text-sm">Parents Information</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Father's Name</Label>
+                      <Input {...studentForm.register("fatherName")} placeholder="Father's Name" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Father's Phone</Label>
+                      <Input {...studentForm.register("fatherPhone")} placeholder="Father's Phone Number" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Mother's Name</Label>
+                      <Input {...studentForm.register("motherName")} placeholder="Mother's Name" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Mother's Phone</Label>
+                      <Input {...studentForm.register("motherPhone")} placeholder="Mother's Phone Number" />
+                    </div>
+                  </div>
+                </div>
+
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={resetStudent}>Cancel</Button>
                   <Button type="submit" disabled={studentForm.formState.isSubmitting}>{studentForm.formState.isSubmitting ? "Saving..." : editingStudent ? "Save" : "Create"}</Button>
@@ -412,7 +551,7 @@ export function UsersPage() {
         </div>
 
         <div className="mt-4 space-y-3">
-          <TableControls search={search} onSearchChange={(value) => { setSearch(value); setPage(1); }} filter={statusFilter} filterLabel="Status" filterOptions={[{ label: "All statuses", value: "all" }, { label: "Active", value: "active" }, { label: "Inactive", value: "inactive" }]} onFilterChange={(value) => { setStatusFilter(value); setPage(1); }} sort={sort} sortOptions={[{ label: "Name A-Z", value: "name-asc" }, { label: "Name Z-A", value: "name-desc" }, { label: "Newest", value: "created-desc" }]} onSortChange={setSort} selectedCount={selectedStudents.length} onBulkDelete={() => void bulkDeleteStudents()} onExport={() => downloadCsv("students.csv", studentTable.allRows.map(row => ({ name: row.name, rollNumber: row.rollNumber, classSectionId: row.classSectionId, status: row.status })))} />
+          <TableControls search={search} onSearchChange={(value) => { setSearch(value); setPage(1); }} filter={statusFilter} filterLabel="Status" filterOptions={[{ label: "All statuses", value: "all" }, { label: "Active", value: "active" }, { label: "Inactive", value: "inactive" }]} onFilterChange={(value) => { setStatusFilter(value); setPage(1); }} sort={sort} sortOptions={[{ label: "Name A-Z", value: "name-asc" }, { label: "Name Z-A", value: "name-desc" }, { label: "Newest", value: "created-desc" }]} onSortChange={setSort} selectedCount={selectedStudents.length} onBulkDelete={() => void bulkDeleteStudents()} onExport={() => downloadCsv("students.csv", studentTable.allRows.map(row => ({ name: row.name, rollNumber: row.rollNumber, classSectionId: row.classSectionId, governmentId: row.governmentId, fatherName: row.fatherName, motherName: row.motherName, status: row.status })))} />
           <Input type="file" accept=".csv,text/csv" className="max-w-sm" onChange={(event) => void importUsers(event.target.files?.[0])} />
         </div>
 
@@ -421,19 +560,45 @@ export function UsersPage() {
             {loading ? <SkeletonRows /> : error ? <ErrorState message={error.message} retry={() => void reload().catch(() => undefined)} /> : students.length === 0 ? <EmptyState title="No students" description="Add the first enrolled student." /> : <Table>
               <TableHeader><TableRow>
                 <TableHead className="w-10"><Checkbox checked={studentTable.rows.length > 0 && studentTable.rows.every(row => selectedStudents.includes(row.id))} onCheckedChange={(checked) => setSelectedStudents(checked ? studentTable.rows.map(row => row.id) : [])} /></TableHead>
-                <TableHead>Name</TableHead><TableHead>Roll No</TableHead><TableHead>Class</TableHead><TableHead>Parent</TableHead><TableHead>Status</TableHead><TableHead className="w-24">Actions</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Roll No</TableHead>
+                <TableHead>Class</TableHead>
+                <TableHead>Govt ID</TableHead>
+                <TableHead>Gender</TableHead>
+                <TableHead>Father Info</TableHead>
+                <TableHead>Mother Info</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-24">Actions</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {studentTable.rows.map((s) => {
-                  const parent = parents.find((p) => s.parentIds.includes(p.id));
+                  const clsName = classOptions.find((c) => c.id === s.classSectionId)?.name ?? classes.find((c) => c.id === s.classSectionId)?.name ?? s.classSectionId;
                   return (<TableRow key={s.id}>
                     <TableCell><Checkbox checked={selectedStudents.includes(s.id)} onCheckedChange={() => toggleStudent(s.id)} /></TableCell>
-                    <TableCell className="font-medium">{s.name}</TableCell>
-                    <TableCell>{s.rollNumber}</TableCell>
-                    <TableCell>
-                      {classes.find((c) => c.id === s.classSectionId)?.name ?? s.classSectionId}
+                    <TableCell className="font-medium">
+                      <div>{s.name}</div>
+                      {s.email && <div className="text-xs text-muted-foreground">{s.email}</div>}
                     </TableCell>
-                    <TableCell>{parent?.name ?? "—"}</TableCell>
+                    <TableCell>{s.rollNumber}</TableCell>
+                    <TableCell><Badge variant="outline">{clsName}</Badge></TableCell>
+                    <TableCell>{s.governmentId || "—"}</TableCell>
+                    <TableCell className="capitalize">{s.gender || "—"}</TableCell>
+                    <TableCell>
+                      {s.fatherName ? (
+                        <div className="text-sm">
+                          <div>{s.fatherName}</div>
+                          {s.fatherPhone && <div className="text-xs text-muted-foreground">{s.fatherPhone}</div>}
+                        </div>
+                      ) : "—"}
+                    </TableCell>
+                    <TableCell>
+                      {s.motherName ? (
+                        <div className="text-sm">
+                          <div>{s.motherName}</div>
+                          {s.motherPhone && <div className="text-xs text-muted-foreground">{s.motherPhone}</div>}
+                        </div>
+                      ) : "—"}
+                    </TableCell>
                     <TableCell><Badge variant={s.status === "active" ? "success" : "secondary"}>{s.status}</Badge></TableCell>
                     <TableCell><div className="flex gap-1">
                       <Button size="sm" variant="ghost" onClick={() => handleEditStudent(s)}><Pencil className="h-3 w-3" /></Button>
@@ -465,24 +630,55 @@ export function UsersPage() {
           form: staffForm, onSubmit: submitStaff,
           extraFields: (<>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2"><Label>Phone</Label><Input {...staffForm.register("phone")} /></div>
-              <div className="space-y-2"><Label>Department</Label><Input {...staffForm.register("department")} /></div>
+              <div className="space-y-2"><Label>Phone Number</Label><Input {...staffForm.register("phone")} placeholder="Phone Number" /></div>
+              <div className="space-y-2"><Label>Government ID</Label><Input {...staffForm.register("governmentId")} placeholder="e.g. Govt ID / Aadhaar" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Gender</Label>
+                <Controller name="gender" control={staffForm.control} render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger><SelectValue placeholder="Select Gender" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )} />
+              </div>
+              <div className="space-y-2"><Label>Department</Label><Input {...staffForm.register("department")} placeholder="e.g. Mathematics, Science" /></div>
             </div>
           </>),
         })}
 
         <div className="mt-4">
-          <TableControls search={search} onSearchChange={(value) => { setSearch(value); setPage(1); }} filter={statusFilter} filterOptions={[{ label: "All statuses", value: "all" }, { label: "Active", value: "active" }, { label: "Inactive", value: "inactive" }]} onFilterChange={(value) => { setStatusFilter(value); setPage(1); }} sort={sort} sortOptions={[{ label: "Name A-Z", value: "name-asc" }, { label: "Name Z-A", value: "name-desc" }, { label: "Newest", value: "created-desc" }]} onSortChange={setSort} onExport={() => downloadCsv("staff.csv", staffTable.allRows.map(row => ({ name: row.name, email: row.email, status: row.status })))} />
+          <TableControls search={search} onSearchChange={(value) => { setSearch(value); setPage(1); }} filter={statusFilter} filterOptions={[{ label: "All statuses", value: "all" }, { label: "Active", value: "active" }, { label: "Inactive", value: "inactive" }]} onFilterChange={(value) => { setStatusFilter(value); setPage(1); }} sort={sort} sortOptions={[{ label: "Name A-Z", value: "name-asc" }, { label: "Name Z-A", value: "name-desc" }, { label: "Newest", value: "created-desc" }]} onSortChange={setSort} onExport={() => downloadCsv("staff.csv", staffTable.allRows.map(row => ({ name: row.name, email: row.email, phone: row.phone, governmentId: row.governmentId, gender: row.gender, department: row.department, status: row.status })))} />
         </div>
 
         <Card className="mt-4">
           <CardContent className="pt-6">
             {loading ? <SkeletonRows /> : error ? <ErrorState message={error.message} retry={() => void reload().catch(() => undefined)} /> : staff.length === 0 ? <EmptyState title="No staff members" description="Add a staff member to get started." /> : <Table>
-              <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Status</TableHead><TableHead>Joined</TableHead><TableHead className="w-24">Actions</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email &amp; Phone</TableHead>
+                <TableHead>Govt ID</TableHead>
+                <TableHead>Gender</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Joined</TableHead>
+                <TableHead className="w-24">Actions</TableHead>
+              </TableRow></TableHeader>
               <TableBody>
                 {staffTable.rows.map((u) => (<TableRow key={u.id}>
                   <TableCell className="font-medium">{u.name}</TableCell>
-                  <TableCell>{u.email}</TableCell>
+                  <TableCell>
+                    <div>{u.email}</div>
+                    {u.phone && <div className="text-xs text-muted-foreground">{u.phone}</div>}
+                  </TableCell>
+                  <TableCell>{u.governmentId || "—"}</TableCell>
+                  <TableCell className="capitalize">{u.gender || "—"}</TableCell>
+                  <TableCell>{u.department || "—"}</TableCell>
                   <TableCell><Badge variant={u.status === "active" ? "success" : "warning"}>{u.status}</Badge></TableCell>
                   <TableCell>{u.createdAt}</TableCell>
                   <TableCell><div className="flex gap-1">
@@ -500,17 +696,14 @@ export function UsersPage() {
       <TabsContent value="parents">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-medium">Parents &amp; Guardians</h3>
-            <p className="text-sm text-muted-foreground">Linked to student accounts. Credentials are auto-generated and emailed.</p>
+            <h3 className="text-lg font-medium">Parents &amp; Guardians List</h3>
+            <p className="text-sm text-muted-foreground">Parent details are automatically gathered when registering students.</p>
           </div>
-          <Button onClick={() => { setEditingParent(null); parentForm.reset(); setParentOpen(true); }}>
-            <Plus className="h-4 w-4" />Add Parent
-          </Button>
         </div>
         {renderUserFormDialog({
           open: parentOpen, onOpenChange: (v) => { if (!v) resetParent(); else setParentOpen(true); },
           editing: editingParent, title: editingParent ? "Edit Parent" : "Add Parent",
-          description: editingParent ? "Update parent profile." : "A Firebase account will be created and credentials emailed automatically.",
+          description: editingParent ? "Update parent profile." : "Parent account information.",
           form: parentForm, onSubmit: submitParent,
           extraFields: (<>
             <div className="grid grid-cols-2 gap-3">
@@ -526,11 +719,11 @@ export function UsersPage() {
 
         <Card className="mt-4">
           <CardContent className="pt-6">
-            {loading ? <SkeletonRows /> : error ? <ErrorState message={error.message} retry={() => void reload().catch(() => undefined)} /> : parents.length === 0 ? <EmptyState title="No parents" description="Add a parent account to get started." /> : <Table>
+            {loading ? <SkeletonRows /> : error ? <ErrorState message={error.message} retry={() => void reload().catch(() => undefined)} /> : parents.length === 0 ? <EmptyState title="No parents registered" description="Parent information is attached when adding students." /> : <Table>
               <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Children</TableHead><TableHead>Status</TableHead><TableHead className="w-24">Actions</TableHead></TableRow></TableHeader>
               <TableBody>
                 {parentTable.rows.map((p) => {
-                  const children = students.filter((s) => s.parentIds.includes(p.id)).map((s) => studentNameById.get(s.id)).filter(Boolean).join(", ");
+                  const children = students.filter((s) => (s.parentIds ?? []).includes(p.id)).map((s) => studentNameById.get(s.id)).filter(Boolean).join(", ");
                   return (<TableRow key={p.id}>
                     <TableCell className="font-medium">{p.name}</TableCell>
                     <TableCell>{p.email}</TableCell>
