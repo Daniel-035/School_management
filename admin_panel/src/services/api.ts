@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { AxiosError, InternalAxiosRequestConfig } from "axios";
+import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://school-management-b28r.onrender.com/api";
 const SESSION_KEY = "educonnect.session";
@@ -76,7 +76,7 @@ const processQueue = (error: unknown, token: string | null = null) => {
 };
 
 apiClient.interceptors.response.use(
-  (response) => {
+  (response: AxiosResponse) => {
     const resData = response.data as ApiResponse;
     if (!resData.success) {
       throw new ApiError(
@@ -171,17 +171,17 @@ apiClient.interceptors.response.use(
 );
 
 export const api = {
-  get: <T>(path: string) => apiClient.get<ApiResponse<T>>(path).then((res) => res.data.data as T),
+  get: <T>(path: string) => apiClient.get<ApiResponse<T>>(path).then((res: AxiosResponse<ApiResponse<T>>) => res.data.data as T),
   post: <T>(path: string, body?: unknown) =>
-    apiClient.post<ApiResponse<T>>(path, body).then((res) => res.data.data as T),
+    apiClient.post<ApiResponse<T>>(path, body).then((res: AxiosResponse<ApiResponse<T>>) => res.data.data as T),
   put: <T>(path: string, body?: unknown) =>
-    apiClient.put<ApiResponse<T>>(path, body).then((res) => res.data.data as T),
+    apiClient.put<ApiResponse<T>>(path, body).then((res: AxiosResponse<ApiResponse<T>>) => res.data.data as T),
   delete: <T>(path: string) =>
-    apiClient.delete<ApiResponse<T>>(path).then((res) => res.data.data as T),
+    apiClient.delete<ApiResponse<T>>(path).then((res: AxiosResponse<ApiResponse<T>>) => res.data.data as T),
   postForm: <T>(path: string, formData: FormData) =>
     apiClient
       .post<ApiResponse<T>>(path, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       })
-      .then((res) => res.data.data as T),
+      .then((res: AxiosResponse<ApiResponse<T>>) => res.data.data as T),
 };

@@ -253,7 +253,7 @@ export function AcademicsPage() {
                   <TableCell>{teacherName(c.classTeacherId)}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {c.subjectIds.map((sid) => (
+                      {c.subjectIds.map((sid: string) => (
                         <Badge key={sid} variant="secondary">
                           {subjectName(sid)}
                         </Badge>
