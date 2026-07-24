@@ -1,4 +1,4 @@
-﻿import '../../core/utils/date_utils.dart';
+import '../../core/utils/date_utils.dart';
 import '../api/api_client.dart';
 import '../models/academics.dart';
 import '../models/homework.dart';
@@ -14,12 +14,15 @@ class HomeworkRepository {
   Future<void> _ensureSubjects() async {
     if (_subjects.isEmpty) {
       final data = await _api.get('/students/subjects');
-      if (data is List) {
-        _subjects = data
-            .whereType<Map<String, dynamic>>()
-            .map(Subject.fromJson)
-            .toList();
-      }
+      final rawList = (data is List)
+          ? data
+          : (data is Map<String, dynamic> && data['subjects'] is List
+              ? data['subjects'] as List
+              : <dynamic>[]);
+      _subjects = rawList
+          .whereType<Map<String, dynamic>>()
+          .map(Subject.fromJson)
+          .toList();
     }
   }
 
@@ -29,17 +32,21 @@ class HomeworkRepository {
       '/homework',
       query: {'classSectionId': classSectionId},
     );
-    if (data is List) {
-      return data
-          .whereType<Map<String, dynamic>>()
-          .map((j) => Homework.fromJson(
-                j,
-                resolveSubjectName: (id) => _subjectMap[id] ?? '',
-              ))
-          .toList()
-        ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
-    }
-    return [];
+    final rawList = (data is List)
+        ? data
+        : (data is Map<String, dynamic> && data['homework'] is List
+            ? data['homework'] as List
+            : (data is Map<String, dynamic> && data['assignments'] is List
+                ? data['assignments'] as List
+                : <dynamic>[]));
+    return rawList
+        .whereType<Map<String, dynamic>>()
+        .map((j) => Homework.fromJson(
+              j,
+              resolveSubjectName: (id) => _subjectMap[id] ?? '',
+            ))
+        .toList()
+      ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
   }
 
   Future<List<Homework>> pendingForClass(String classSectionId) async {
@@ -67,12 +74,15 @@ class ExamRepository {
   Future<void> _ensureSubjects() async {
     if (_subjects.isEmpty) {
       final data = await _api.get('/students/subjects');
-      if (data is List) {
-        _subjects = data
-            .whereType<Map<String, dynamic>>()
-            .map(Subject.fromJson)
-            .toList();
-      }
+      final rawList = (data is List)
+          ? data
+          : (data is Map<String, dynamic> && data['subjects'] is List
+              ? data['subjects'] as List
+              : <dynamic>[]);
+      _subjects = rawList
+          .whereType<Map<String, dynamic>>()
+          .map(Subject.fromJson)
+          .toList();
     }
   }
 
@@ -82,17 +92,19 @@ class ExamRepository {
       '/exams',
       query: {'classSectionId': classSectionId},
     );
-    if (data is List) {
-      return data
-          .whereType<Map<String, dynamic>>()
-          .map((j) => ExamSchedule.fromJson(
-                j,
-                resolveSubjectName: (id) => _subjectMap[id] ?? '',
-              ))
-          .toList()
-        ..sort((a, b) => a.date.compareTo(b.date));
-    }
-    return [];
+    final rawList = (data is List)
+        ? data
+        : (data is Map<String, dynamic> && data['exams'] is List
+            ? data['exams'] as List
+            : <dynamic>[]);
+    return rawList
+        .whereType<Map<String, dynamic>>()
+        .map((j) => ExamSchedule.fromJson(
+              j,
+              resolveSubjectName: (id) => _subjectMap[id] ?? '',
+            ))
+        .toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
   }
 }
 
@@ -103,19 +115,20 @@ class ReportCardRepository {
   Future<List<ReportCard>> forStudent(String studentId) async {
     try {
       final data = await _api.get('/exams/report/$studentId');
-      if (data is List) {
-        return data
-            .whereType<Map<String, dynamic>>()
-            .map(ReportCard.fromJson)
-            .toList()
-          ..sort((a, b) => b.issuedOn.compareTo(a.issuedOn));
-      }
-      if (data is Map<String, dynamic>) {
-        return [ReportCard.fromJson(data)];
-      }
+      final rawList = (data is List)
+          ? data
+          : (data is Map<String, dynamic> && data['reports'] is List
+              ? data['reports'] as List
+              : (data is Map<String, dynamic> && data['reportCards'] is List
+                  ? data['reportCards'] as List
+                  : (data is Map<String, dynamic> ? [data] : <dynamic>[])));
+      return rawList
+          .whereType<Map<String, dynamic>>()
+          .map(ReportCard.fromJson)
+          .toList()
+        ..sort((a, b) => b.issuedOn.compareTo(a.issuedOn));
     } catch (_) {
       return [];
     }
-    return [];
   }
 }

@@ -1,4 +1,4 @@
-﻿import '../api/api_client.dart';
+import '../api/api_client.dart';
 import '../models/communication.dart';
 
 class CommunicationRepository {
@@ -12,18 +12,20 @@ class CommunicationRepository {
 
   Future<List<Announcement>> announcements() async {
     final data = await _api.get('/announcements');
-    if (data is List) {
-      final list = data
-          .whereType<Map<String, dynamic>>()
-          .map(Announcement.fromJson)
-          .toList()
-        ..sort((a, b) {
-          if (a.pinned != b.pinned) return a.pinned ? -1 : 1;
-          return b.publishedAt.compareTo(a.publishedAt);
-        });
-      return list;
-    }
-    return [];
+    final rawList = (data is List)
+        ? data
+        : (data is Map<String, dynamic> && data['announcements'] is List
+            ? data['announcements'] as List
+            : <dynamic>[]);
+    final list = rawList
+        .whereType<Map<String, dynamic>>()
+        .map(Announcement.fromJson)
+        .toList()
+      ..sort((a, b) {
+        if (a.pinned != b.pinned) return a.pinned ? -1 : 1;
+        return b.publishedAt.compareTo(a.publishedAt);
+      });
+    return list;
   }
 
   Future<List<MessageThread>> threadsFor(String parentId) async {
@@ -31,18 +33,20 @@ class CommunicationRepository {
       '/communication/threads',
       query: {'parentId': parentId},
     );
-    if (data is List) {
-      return data
-          .whereType<Map<String, dynamic>>()
-          .map(MessageThread.fromJson)
-          .toList()
-        ..sort((a, b) {
-          final ad = a.lastMessageAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-          final bd = b.lastMessageAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-          return bd.compareTo(ad);
-        });
-    }
-    return [];
+    final rawList = (data is List)
+        ? data
+        : (data is Map<String, dynamic> && data['threads'] is List
+            ? data['threads'] as List
+            : <dynamic>[]);
+    return rawList
+        .whereType<Map<String, dynamic>>()
+        .map(MessageThread.fromJson)
+        .toList()
+      ..sort((a, b) {
+        final ad = a.lastMessageAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bd = b.lastMessageAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bd.compareTo(ad);
+      });
   }
 
   Future<MessageThread?> threadById(String id) async {

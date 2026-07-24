@@ -1,4 +1,4 @@
-﻿import '../../core/utils/date_utils.dart';
+import '../../core/utils/date_utils.dart';
 import '../api/api_client.dart';
 import '../models/attendance.dart';
 
@@ -38,12 +38,15 @@ class AttendanceRepository {
     DateTime? month,
   }) async {
     final data = await _api.get('/attendance/student/$studentId');
-    final list = (data is List)
+    final rawList = (data is List)
         ? data
-            .whereType<Map<String, dynamic>>()
-            .map(AttendanceRecord.fromJson)
-            .toList()
-        : <AttendanceRecord>[];
+        : (data is Map<String, dynamic> && data['records'] is List
+            ? data['records'] as List
+            : <dynamic>[]);
+    final list = rawList
+        .whereType<Map<String, dynamic>>()
+        .map(AttendanceRecord.fromJson)
+        .toList();
     list.sort((a, b) => b.date.compareTo(a.date));
     return _filterMonth(list, month);
   }
@@ -55,11 +58,14 @@ class AttendanceRepository {
         'month': DateTime.now().toIso8601String().substring(0, 7),
       },
     );
-    if (data is Map<String, dynamic>) {
-      final present = ((data['present'] as num?) ?? 0).toInt();
-      final absent = ((data['absent'] as num?) ?? 0).toInt();
-      final late = ((data['late'] as num?) ?? 0).toInt();
-      final total = ((data['total'] as num?) ?? 0).toInt();
+    final map = (data is Map<String, dynamic> && data['summary'] is Map<String, dynamic>)
+        ? data['summary'] as Map<String, dynamic>
+        : (data is Map<String, dynamic> ? data : null);
+    if (map != null) {
+      final present = ((map['present'] as num?) ?? 0).toInt();
+      final absent = ((map['absent'] as num?) ?? 0).toInt();
+      final late = ((map['late'] as num?) ?? 0).toInt();
+      final total = ((map['total'] as num?) ?? (present + absent + late)).toInt();
       return AttendanceSummary(
         present: present,
         absent: absent,
