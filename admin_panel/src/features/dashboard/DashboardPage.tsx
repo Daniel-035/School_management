@@ -1,4 +1,6 @@
 import { useQueries } from "@tanstack/react-query";
+import { TeacherMonitor } from "./components/TeacherMonitor";
+import { StudentActivityMonitor } from "./components/StudentActivityMonitor";
 import {
   Users,
   Wallet,
@@ -124,7 +126,12 @@ export function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Admin Operations Overview</h1>
+        <p className="text-sm text-muted-foreground">Real-time monitoring of student attendance, teacher activities, and school operations.</p>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <Card key={stat.title}>
@@ -138,6 +145,16 @@ export function DashboardPage() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      <div className="space-y-4 pt-2">
+        <h2 className="text-lg font-bold tracking-tight">Teacher Activity & Roll Call Monitor</h2>
+        <TeacherMonitor />
+      </div>
+
+      <div className="space-y-4 pt-2">
+        <h2 className="text-lg font-bold tracking-tight">Student Attendance & Leave Applications Desk</h2>
+        <StudentActivityMonitor />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -217,17 +234,21 @@ export function DashboardPage() {
             <CardDescription>Latest announcements and events</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {activityFeed.length === 0 ? <EmptyState title="No recent activity" description="Activity will appear here as announcements and events are created." /> : activityFeed.map(item => (
-              <div key={item.id} className="flex items-start gap-3 rounded-md border p-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary">
-                  {item.type === "event" ? <CalendarDays className="h-4 w-4" /> : <Megaphone className="h-4 w-4" />}
+            {activityFeed.length === 0 ? (
+              <EmptyState title="No recent activity" description="Activity will appear here as announcements and events are created." />
+            ) : (
+              activityFeed.map((item) => (
+                <div key={item.id} className="flex items-start gap-3 rounded-md border p-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    {item.type === "event" ? <CalendarDays className="h-4 w-4" /> : <Megaphone className="h-4 w-4" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium leading-tight">{item.title}</p>
+                    <p className="text-xs text-muted-foreground">{formatDate(item.date)} · {item.label}</p>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium leading-tight">{item.title}</p>
-                  <p className="text-xs text-muted-foreground">{formatDate(item.date)} · {item.label}</p>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
       </div>
