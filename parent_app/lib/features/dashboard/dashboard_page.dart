@@ -29,9 +29,11 @@ class DashboardPage extends ConsumerWidget {
       return const Scaffold(body: SizedBox.shrink());
     }
 
+    final parentFirstName = parent.name.trim().isEmpty ? 'Parent' : parent.name.trim().split(RegExp(r'\s+')).first;
+
     if (children.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: Text('Hi, ${parent.name.split(' ').first}')),
+        appBar: AppBar(title: Text('Hi, $parentFirstName')),
         body: const EmptyState(
           icon: Icons.person_off_rounded,
           title: 'No child linked to this account',
@@ -47,7 +49,7 @@ class DashboardPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Hi, ${parent.name.split(' ').first}'),
+        title: Text('Hi, $parentFirstName'),
         actions: [
           _NotificationBell(unread: ref.watch(unreadNotificationCountProvider)),
           IconButton(
