@@ -96,7 +96,7 @@ type AnyForm = StudentForm & StaffForm & ParentForm;
 export function AddUserDialog({ open, onOpenChange, kind, editing, onSaved }: AddUserDialogProps) {
   const isStudent = kind === "student";
   const isStaff = kind === "staff";
-  const role: UserRole = isStudent ? "parent" : kind;
+  const role: UserRole = isStudent ? "student" : kind;
 
   const { data: classes = [] } = useQuery({ queryKey: queryKeys.classes, queryFn: academicService.getClasses });
   const { data: subjects = [] } = useQuery({ queryKey: queryKeys.subjects, queryFn: academicService.getSubjects });

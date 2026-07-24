@@ -1,4 +1,4 @@
-﻿import '../api/api_client.dart';
+import '../api/api_client.dart';
 import '../models/class_section.dart';
 import '../models/student.dart';
 
@@ -32,11 +32,14 @@ class StudentRepository {
     await _ensureClasses();
     final data = await _api.get('/students', query: {'parentId': parentId});
     if (data is List) {
-      return data
+      final list = data
           .whereType<Map<String, dynamic>>()
           .map((j) => Student.fromJson(j, resolveClass: _resolveClass))
           .toList();
+      if (list.isNotEmpty) return list;
     }
+    final direct = await byId(parentId);
+    if (direct != null) return [direct];
     return [];
   }
 

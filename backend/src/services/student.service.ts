@@ -5,11 +5,32 @@ import { NotFoundError } from "../utils/errors";
 import { generatePassword, generateUsername, provisionUser } from "./credential.service";
 
 export async function listStudents(filter?: { classSectionId?: string; parentId?: string }) {
-  return studentRepository.findAll(filter);
+  const students = await studentRepository.findAll(filter);
+  if (filter?.parentId && students.length === 0) {
+    const selfStudent = await getStudent(filter.parentId).catch(() => null);
+    if (selfStudent) {
+      return [selfStudent];
+    }
+  }
+  return students;
 }
 
 export async function getStudent(id: string) {
-  const student = await studentRepository.findById(id);
+  let student = await studentRepository.findById(id);
+  if (!student) {
+    student = await studentRepository.findByEmail(id);
+  }
+  if (!student) {
+    student = await studentRepository.findByUsername(id);
+  }
+  if (!student) {
+    const { userRepository } = await import("../repositories/user.repository");
+    const user = await userRepository.findById(id);
+    if (user) {
+      if (user.email) student = await studentRepository.findByEmail(user.email);
+      if (!student && user.username) student = await studentRepository.findByUsername(user.username);
+    }
+  }
   if (!student) throw new NotFoundError("Student");
   return student;
 }
@@ -52,7 +73,7 @@ export async function createStudent(data: {
     username,
     rollNumber: data.rollNumber,
     classSectionId: data.classSectionId,
-    parentIds: data.parentIds ?? [],
+    parentIds: uid ? Array.from(new Set([...(data.parentIds ?? []), uid])) : (data.parentIds ?? []),
     governmentId: data.governmentId,
     email: studentEmail,
     phone: data.phone,

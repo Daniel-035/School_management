@@ -5,7 +5,13 @@ export const empty = z.object({}).strict();
 export const idParams = z.object({ id: z.string().min(1) }).strict();
 export const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 export const optionalIdQuery = z.object({}).catchall(z.string().optional());
-export const login = z.object({ email: z.string().trim().email().transform(value => value.toLowerCase()), password: z.string().min(1) }).strict();
+export const login = z.object({
+  email: z.string().trim().min(1).optional(),
+  identifier: z.string().trim().min(1).optional(),
+  password: z.string().min(1),
+}).refine(data => !!(data.email || data.identifier), {
+  message: "Either email or identifier is required",
+});
 export const refresh = z.object({ refreshToken: z.string().min(1) }).strict();
 export const register = z.object({
   firstName: z.string().trim().min(1, "First name is required"),

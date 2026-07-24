@@ -1,4 +1,4 @@
-﻿enum UserRole { parent, teacher, admin, staff }
+enum UserRole { parent, teacher, admin, staff, student }
 
 UserRole _roleFromString(String s) {
   switch (s) {
@@ -8,6 +8,8 @@ UserRole _roleFromString(String s) {
       return UserRole.staff;
     case 'teacher':
       return UserRole.teacher;
+    case 'student':
+      return UserRole.student;
     case 'parent':
     default:
       return UserRole.parent;
@@ -22,6 +24,8 @@ String _roleToString(UserRole r) {
       return 'staff';
     case UserRole.teacher:
       return 'teacher';
+    case UserRole.student:
+      return 'student';
     case UserRole.parent:
       return 'parent';
   }

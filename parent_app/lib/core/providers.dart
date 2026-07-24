@@ -172,6 +172,9 @@ class AuthController extends AsyncNotifier<AppUser?> {
             password: password,
           ),
     );
+    if (state.hasError) {
+      throw state.error!;
+    }
   }
 
   Future<void> logout() async {

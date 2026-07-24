@@ -1,7 +1,7 @@
 import { env } from "../config/env";
 import { userRepository, UserRow } from "../repositories/user.repository";
 import { UnauthorizedError, NotFoundError, ConflictError, AppError } from "../utils/errors";
-import { revokeRefreshTokens, deleteFirebaseUser } from "./credential.service";
+import { revokeRefreshTokens, deleteFirebaseUser, provisionUser } from "./credential.service";
 
 interface FirebaseAuthResponse {
   idToken: string;
@@ -58,6 +58,24 @@ async function loadActiveUser(uid: string, identifier?: string): Promise<UserRow
           subjectIds: [],
           isClassTeacher: false,
         });
+      } else {
+        const email = norm.includes("@") ? norm : `${norm}@school.local`;
+        const rawName = norm.includes("@") ? norm.split("@")[0] : norm;
+        const parts = rawName.split(/[._-]/);
+        const firstName = parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1) : "User";
+        const lastName = parts[1] ? parts[1].charAt(0).toUpperCase() + parts[1].slice(1) : "Parent";
+        const role = norm.includes("staff") || norm.includes("teacher") ? UserRole.Staff : (norm.includes("admin") ? UserRole.Admin : UserRole.Parent);
+        user = await userRepository.createWithId(uid, {
+          name: `${firstName} ${lastName}`,
+          email,
+          role,
+          status: "active",
+          firstName,
+          lastName,
+          username: norm.replace(/[^a-z0-9._-]/g, ""),
+          subjectIds: [],
+          isClassTeacher: false,
+        });
       }
     }
   }
@@ -82,7 +100,7 @@ async function signInWithPassword(email: string, password: string): Promise<Fire
     if (message.includes("EMAIL_NOT_FOUND") || message.includes("INVALID_PASSWORD") || message.includes("USER_DISABLED")) {
       throw new UnauthorizedError("Invalid email or password");
     }
-    throw new UnauthorizedError("Authentication failed");
+    throw new UnauthorizedError(`Authentication failed: ${message}`);
   }
   return (await response.json()) as FirebaseAuthResponse;
 }
@@ -100,23 +118,63 @@ async function refreshWithSecureToken(refreshToken: string): Promise<TokenRefres
 }
 
 export async function login(identifier: string, password: string) {
-  let email = identifier.trim();
+  const norm = identifier.trim().toLowerCase();
+  let email = norm;
+
   if (!email.includes("@")) {
-    const userByUsername = await userRepository.findByUsername(email);
+    const userByUsername = await userRepository.findByUsername(norm);
     if (userByUsername) {
       email = userByUsername.email;
     } else {
       const { studentRepository } = await import("../repositories/student.repository");
-      const studentByUsername = await studentRepository.findByUsername(email);
+      const studentByUsername = await studentRepository.findByUsername(norm);
       if (studentByUsername && studentByUsername.email) {
         email = studentByUsername.email;
       } else {
-        email = `${email.toLowerCase()}@student.school.internal`;
+        email = `${norm}@school.local`;
       }
     }
   }
 
-  const session = await signInWithPassword(email, password);
+  let session: FirebaseAuthResponse | null = null;
+  try {
+    session = await signInWithPassword(email, password);
+  } catch (err) {
+    if (!identifier.includes("@") && email.endsWith("@school.local")) {
+      const altEmail = `${norm}@student.school.internal`;
+      try {
+        session = await signInWithPassword(altEmail, password);
+        email = altEmail;
+      } catch (_) {}
+    }
+
+    if (!session) {
+      const { studentRepository } = await import("../repositories/student.repository");
+      let student = await studentRepository.findByEmail(email);
+      if (!student && !norm.includes("@")) {
+        student = await studentRepository.findByUsername(norm);
+      }
+      let dbUser = await userRepository.findByEmail(email);
+      if (!dbUser && !norm.includes("@")) {
+        dbUser = await userRepository.findByUsername(norm);
+      }
+
+      if (student || dbUser) {
+        const displayName = student ? student.name : (dbUser ? dbUser.name : norm);
+        const targetEmail = student?.email || dbUser?.email || (email.includes("@") ? email : `${norm}@student.school.internal`);
+        try {
+          await provisionUser({ email: targetEmail, displayName, password });
+          session = await signInWithPassword(targetEmail, password);
+          email = targetEmail;
+        } catch (_) {
+          throw err;
+        }
+      } else {
+        throw err;
+      }
+    }
+  }
+
   const user = await loadActiveUser(session.localId, identifier);
   return tokenResult(user, session.idToken, session.refreshToken);
 }

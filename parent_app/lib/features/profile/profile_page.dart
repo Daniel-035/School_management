@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -281,6 +281,8 @@ class _ParentProfileCard extends StatelessWidget {
         return 'Staff';
       case UserRole.teacher:
         return 'Teacher';
+      case UserRole.student:
+        return 'Student';
       case UserRole.parent:
         return 'Parent';
     }

@@ -1,4 +1,4 @@
-﻿import { env } from "./config/env";
+import { env } from "./config/env";
 import { createApp } from "./app";
 import { seedDemoData } from "./seed";
 import { initSentry } from "./observability/sentry";
@@ -12,8 +12,8 @@ async function bootstrap() {
 
   const app = createApp();
   const port = env.PORT;
-  app.listen(port, () => {
-    console.log(`EduConnect API running on http://localhost:${port}`);
+  app.listen(port, "0.0.0.0", () => {
+    console.log(`EduConnect API running on http://0.0.0.0:${port}`);
   });
 }
 

@@ -1,12 +1,13 @@
-﻿import { Request, Response } from "express";
+import { Request, Response } from "express";
 import * as authService from "../services/auth.service";
 import { asyncHandler } from "../utils/asyncHandler";
 import { success } from "../utils/response";
 import { AppError } from "../utils/errors";
 
 export const login = asyncHandler(async (req: Request, res: Response) => {
-  const { email, password } = req.body as { email: string; password: string };
-  const result = await authService.login(email, password);
+  const { email, identifier, password } = req.body as { email?: string; identifier?: string; password: string };
+  const loginId = identifier || email || "";
+  const result = await authService.login(loginId, password);
   success(res, result, 200, "Login successful");
 });
 
