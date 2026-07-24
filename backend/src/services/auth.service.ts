@@ -85,7 +85,7 @@ export async function loadActiveUser(uid: string, identifier?: string): Promise<
     const normEmail = user.email ? user.email.toLowerCase() : "";
     const normUsername = user.username ? user.username.toLowerCase() : "";
     const student = (await studentRepository.findByEmail(normEmail)) || (normUsername ? await studentRepository.findByUsername(normUsername) : null);
-    if (student && user.role === UserRole.Admin) {
+    if (student && user.role !== UserRole.Admin && user.role !== UserRole.Staff) {
       await userRepository.update(user.id, { role: UserRole.Student });
       user.role = UserRole.Student;
     }
