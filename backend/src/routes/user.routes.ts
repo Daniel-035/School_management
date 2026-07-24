@@ -9,7 +9,7 @@ import { AppError } from "../utils/errors";
 
 const router = Router();
 const csv = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: (_req, file, cb) => cb(null, file.mimetype === "text/csv" || file.originalname.toLowerCase().endsWith(".csv")) });
-router.use(authenticate, requireRole(UserRole.Admin));
+router.use(authenticate, requireRole(UserRole.Admin, UserRole.Staff));
 router.get("/", validateQuery(schema.userQuery), controller.list);
 router.post("/import", csv.single("file"), (req, _res, next) => req.file ? next() : next(new AppError("CSV file is required", 400, "VALIDATION_ERROR")), controller.importCsv);
 router.post("/", validateBody(schema.userCreate), controller.create);

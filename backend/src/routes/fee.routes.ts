@@ -23,6 +23,6 @@ router.post("/payments/:id/remind", requireRole(UserRole.Admin), validateParams(
 router.post("/payments/orders", validateBody(schema.orderCreate), feeController.createOrder);
 router.post("/payments/verify", validateBody(schema.paymentVerify), feeController.verifyPayment);
 
-router.get("/summary", requireRole(UserRole.Admin), validateQuery(schema.empty), feeController.feeSummary);
+router.get("/summary", requireRole(UserRole.Admin, UserRole.Staff), validateQuery(schema.empty), feeController.feeSummary);
 
 export default router;
