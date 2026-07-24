@@ -41,7 +41,7 @@ import {
 import { userService } from "@/services/userService";
 import { academicService } from "@/services/academicService";
 import type { CreatedUserResult, Student, User, ClassSection } from "@/types";
-import { Pencil, Trash2, Plus, Copy, Check, Mail } from "lucide-react";
+import { Pencil, Trash2, Plus, Copy, Check, Mail, Eye } from "lucide-react";
 import { EmptyState, ErrorState, FieldError, SkeletonRows } from "@/components/ui/async-state";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PaginationControls, TableControls, applyTableState } from "@/components/ui/data-table-tools";
@@ -49,6 +49,7 @@ import { downloadCsv } from "@/lib/csv";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryClient";
 import { DEFAULT_CLASS_OPTIONS } from "./AddUserDialog";
+import { StudentDetailModal } from "./StudentDetailModal";
 
 const studentSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required"),
@@ -109,6 +110,7 @@ export function UsersPage() {
 
   const [studentOpen, setStudentOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [inspectedStudent, setInspectedStudent] = useState<Student | null>(null);
   const [staffOpen, setStaffOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<User | null>(null);
   const [parentOpen, setParentOpen] = useState(false);
@@ -575,11 +577,11 @@ export function UsersPage() {
                   const clsName = classOptions.find((c) => c.id === s.classSectionId)?.name ?? classes.find((c) => c.id === s.classSectionId)?.name ?? s.classSectionId;
                   return (<TableRow key={s.id}>
                     <TableCell><Checkbox checked={selectedStudents.includes(s.id)} onCheckedChange={() => toggleStudent(s.id)} /></TableCell>
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium hover:underline hover:cursor-pointer text-primary" onClick={() => setInspectedStudent(s)}>
                       <div>{s.name}</div>
                       {s.email && <div className="text-xs text-muted-foreground">{s.email}</div>}
                     </TableCell>
-                    <TableCell>{s.rollNumber}</TableCell>
+                    <TableCell>{s.rollNumber || "—"}</TableCell>
                     <TableCell><Badge variant="outline">{clsName}</Badge></TableCell>
                     <TableCell>{s.governmentId || "—"}</TableCell>
                     <TableCell className="capitalize">{s.gender || "—"}</TableCell>
@@ -601,8 +603,9 @@ export function UsersPage() {
                     </TableCell>
                     <TableCell><Badge variant={s.status === "active" ? "success" : "secondary"}>{s.status}</Badge></TableCell>
                     <TableCell><div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => handleEditStudent(s)}><Pencil className="h-3 w-3" /></Button>
-                      <Button size="sm" variant="ghost" onClick={() => void handleDeleteStudent(s.id)}><Trash2 className="h-3 w-3" /></Button>
+                      <Button size="sm" variant="ghost" title="View Full Details" onClick={() => setInspectedStudent(s)}><Eye className="h-3.5 w-3.5 text-primary" /></Button>
+                      <Button size="sm" variant="ghost" title="Edit Student" onClick={() => handleEditStudent(s)}><Pencil className="h-3 w-3" /></Button>
+                      <Button size="sm" variant="ghost" title="Delete Student" onClick={() => void handleDeleteStudent(s.id)}><Trash2 className="h-3 w-3" /></Button>
                     </div></TableCell>
                   </TableRow>);
                 })}
@@ -743,6 +746,15 @@ export function UsersPage() {
       </TabsContent>
 
       {renderCredentialsDialog()}
+      <StudentDetailModal
+        student={inspectedStudent}
+        classes={classes}
+        staff={staff}
+        open={Boolean(inspectedStudent)}
+        onOpenChange={(open) => {
+          if (!open) setInspectedStudent(null);
+        }}
+      />
     </Tabs>
   );
 }
