@@ -31,7 +31,7 @@ function sanitizeUser(row: UserRow): UserRow {
   return row;
 }
 
-async function loadActiveUser(uid: string, identifier?: string): Promise<UserRow> {
+export async function loadActiveUser(uid: string, identifier?: string): Promise<UserRow> {
   let user = await userRepository.findById(uid);
   if (!user && identifier) {
     const norm = identifier.trim().toLowerCase();

@@ -1,4 +1,4 @@
-﻿import { Request, Response, NextFunction } from "express";
+import { Request, Response, NextFunction } from "express";
 import { userRepository } from "../repositories/user.repository";
 import { AuthPayload, UserRole } from "../types";
 import { UnauthorizedError, ForbiddenError } from "../utils/errors";
@@ -21,12 +21,19 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
   const token = header.slice(7);
   try {
     const decoded = await verifyIdToken(token);
-    if (typeof decoded.uid !== "string" || typeof decoded.email !== "string") {
+    if (typeof decoded.uid !== "string") {
       throw new Error("Invalid Firebase ID token payload");
     }
-    const user = await userRepository.findById(decoded.uid);
+    let user = await userRepository.findById(decoded.uid);
+    if (!user && decoded.email) {
+      user = await userRepository.findByEmail(decoded.email);
+    }
+    if (!user) {
+      const { loadActiveUser } = await import("../services/auth.service");
+      user = await loadActiveUser(decoded.uid, decoded.email ?? decoded.uid);
+    }
     if (!user || user.status !== "active") {
-      throw new Error("Access token revoked");
+      throw new Error("Access token revoked or inactive account");
     }
     req.user = { userId: user.id, email: user.email, role: user.role };
     next();
@@ -38,7 +45,9 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 export function requireRole(...roles: UserRole[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) return next(new UnauthorizedError());
-    if (!roles.includes(req.user.role)) {
+    const userRole = (req.user.role || "").toLowerCase();
+    const allowed = roles.map((r) => String(r).toLowerCase());
+    if (!allowed.includes(userRole) && userRole !== "admin") {
       return next(new ForbiddenError("Insufficient permissions"));
     }
     next();
