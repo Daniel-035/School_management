@@ -52,3 +52,10 @@ export const logoutAll = asyncHandler(async (req: Request, res: Response) => {
   await authService.logoutAll(req.user.userId);
   success(res, { message: "Logged out from all devices" });
 });
+
+export const changePassword = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
+  const { currentPassword, newPassword } = req.body as { currentPassword?: string; newPassword?: string };
+  await authService.changeUserPassword(req.user.userId, currentPassword ?? "", newPassword ?? "");
+  success(res, { message: "Password updated successfully" }, 200, "Password updated");
+});

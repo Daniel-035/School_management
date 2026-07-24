@@ -79,9 +79,40 @@ async function loadActiveUser(uid: string, identifier?: string): Promise<UserRow
       }
     }
   }
+  if (user) {
+    const { studentRepository } = await import("../repositories/student.repository");
+    const { UserRole } = await import("../types");
+    const normEmail = user.email ? user.email.toLowerCase() : "";
+    const normUsername = user.username ? user.username.toLowerCase() : "";
+    const student = (await studentRepository.findByEmail(normEmail)) || (normUsername ? await studentRepository.findByUsername(normUsername) : null);
+    if (student && user.role === UserRole.Admin) {
+      await userRepository.update(user.id, { role: UserRole.Student });
+      user.role = UserRole.Student;
+    }
+  }
   if (!user) throw new UnauthorizedError("Account is not provisioned in this application");
   if (user.status !== "active") throw new UnauthorizedError("Account is inactive");
   return user;
+}
+
+export async function changeUserPassword(uid: string, currentPassword: string, newPassword: string): Promise<void> {
+  if (!currentPassword || !newPassword) {
+    throw new AppError("Current password and new password are required", 400);
+  }
+  if (newPassword.length < 6) {
+    throw new AppError("New password must be at least 6 characters long", 400);
+  }
+  const user = await userRepository.findById(uid);
+  if (!user) throw new NotFoundError("User not found");
+
+  try {
+    await signInWithPassword(user.email, currentPassword);
+  } catch (err) {
+    throw new UnauthorizedError("Current password is incorrect");
+  }
+
+  const { getAuth } = await import("firebase-admin/auth");
+  await getAuth().updateUser(uid, { password: newPassword });
 }
 
 function tokenResult(user: UserRow, token: string, refreshToken: string) {

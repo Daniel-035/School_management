@@ -1,5 +1,5 @@
-﻿import { Router } from "express";
-import { login, register, forgotPassword, resetPassword, refresh, me, logout, logoutAll } from "../controllers/auth.controller";
+import { Router } from "express";
+import { login, register, forgotPassword, resetPassword, refresh, me, logout, logoutAll, changePassword } from "../controllers/auth.controller";
 import { authenticate } from "../middleware/auth";
 import { validateBody, validateQuery } from "../validators";
 import * as schema from "../validators/schemas";
@@ -14,5 +14,6 @@ router.post("/refresh", validateBody(schema.refresh), refresh);
 router.get("/me", authenticate, validateQuery(schema.empty), me);
 router.post("/logout", validateBody(schema.refresh), logout);
 router.post("/logout-all", authenticate, validateBody(schema.empty), logoutAll);
+router.post("/change-password", authenticate, changePassword);
 
 export default router;
