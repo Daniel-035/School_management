@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:staff_app/core/router.dart';
 import 'package:staff_app/core/theme.dart';
 import 'package:staff_app/data/models.dart';
-import 'package:staff_app/data/school_repository.dart';
+import '../../shared/widgets/app_drawer.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -15,49 +15,67 @@ class DashboardScreen extends StatelessWidget {
     final repo = context.watch<SchoolRepository>();
     final staff = repo.currentStaff;
     final today = DateFormat('EEEE, d MMM').format(DateTime.now());
-    final firstName = staff.name.split(' ').last;
+    final firstName = staff.name.trim().isEmpty ? 'Staff' : staff.name.trim().split(RegExp(r'\s+')).last;
 
     return Scaffold(
+      drawer: const StaffAppDrawer(),
       appBar: AppBar(
         titleSpacing: 16,
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: AppColors.accent,
-              child: Text(
-                staff.avatarInitial ?? staff.name[0],
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+        title: Builder(
+          builder: (ctx) => InkWell(
+            onTap: () => Scaffold.of(ctx).openDrawer(),
+            borderRadius: BorderRadius.circular(8),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.accent,
+                  backgroundImage: (staff.profilePicturePath != null && staff.profilePicturePath!.trim().isNotEmpty)
+                      ? NetworkImage(staff.profilePicturePath!.trim())
+                      : null,
+                  onBackgroundImageError: (_, __) {},
+                  child: (staff.profilePicturePath == null || staff.profilePicturePath!.trim().isEmpty)
+                      ? Text(
+                          staff.avatarInitial ?? (staff.name.isNotEmpty ? staff.name[0].toUpperCase() : '?'),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : null,
                 ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Hello, $firstName',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Hello, $firstName',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const Icon(Icons.arrow_drop_down_rounded, color: Colors.white70),
+                        ],
+                      ),
+                      Text(
+                        staff.role,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    staff.role,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
         actions: [
           IconButton(

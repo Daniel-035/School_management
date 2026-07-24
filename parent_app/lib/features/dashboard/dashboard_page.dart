@@ -9,6 +9,7 @@ import '../../data/models/attendance.dart';
 import '../../data/models/calendar_event.dart';
 import '../../data/models/communication.dart';
 import '../../data/models/student.dart';
+import '../../shared/widgets/app_drawer.dart';
 import '../../shared/widgets/child_avatar.dart';
 import '../../shared/widgets/empty_state.dart';
 import '../../shared/widgets/info_card.dart';
@@ -17,6 +18,15 @@ import '../../shared/widgets/status_pill.dart';
 
 class DashboardPage extends ConsumerWidget {
   const DashboardPage({super.key});
+
+  static String _getInitials(String name) {
+    final clean = name.trim();
+    if (clean.isEmpty) return '?';
+    final parts = clean.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+    return (parts.first[0] + parts.last[0]).toUpperCase();
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,7 +43,28 @@ class DashboardPage extends ConsumerWidget {
 
     if (children.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: Text('Hi, $parentFirstName')),
+        drawer: const AppDrawer(),
+        appBar: AppBar(
+          title: Builder(
+            builder: (ctx) => InkWell(
+              onTap: () => Scaffold.of(ctx).openDrawer(),
+              borderRadius: BorderRadius.circular(8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ChildAvatar(
+                    initials: _getInitials(parent.name),
+                    size: 32,
+                    imageUrl: parent.avatarUrl,
+                  ),
+                  const SizedBox(width: 8),
+                  Text('Hi, $parentFirstName'),
+                  const Icon(Icons.arrow_drop_down_rounded),
+                ],
+              ),
+            ),
+          ),
+        ),
         body: const EmptyState(
           icon: Icons.person_off_rounded,
           title: 'No child linked to this account',
@@ -48,8 +79,27 @@ class DashboardPage extends ConsumerWidget {
     );
 
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
-        title: Text('Hi, $parentFirstName'),
+        title: Builder(
+          builder: (ctx) => InkWell(
+            onTap: () => Scaffold.of(ctx).openDrawer(),
+            borderRadius: BorderRadius.circular(8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ChildAvatar(
+                  initials: _getInitials(parent.name),
+                  size: 32,
+                  imageUrl: parent.avatarUrl,
+                ),
+                const SizedBox(width: 8),
+                Text('Hi, $parentFirstName'),
+                const Icon(Icons.arrow_drop_down_rounded),
+              ],
+            ),
+          ),
+        ),
         actions: [
           _NotificationBell(unread: ref.watch(unreadNotificationCountProvider)),
           IconButton(
