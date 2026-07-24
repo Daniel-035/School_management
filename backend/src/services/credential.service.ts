@@ -32,7 +32,16 @@ export async function provisionUser(data: { email: string; displayName: string; 
   } catch (error) {
     const code = (error as { code?: string }).code ?? "";
     if (code === "auth/email-already-exists" || code === "auth/uid-already-exists") {
-      throw new ConflictError("A Firebase account already exists for this email");
+      try {
+        const existing = await getAuth().getUserByEmail(data.email);
+        await getAuth().updateUser(existing.uid, {
+          password: data.password,
+          displayName: data.displayName,
+        });
+        return { uid: existing.uid, email: existing.email ?? data.email };
+      } catch (_) {
+        throw new ConflictError("A Firebase account already exists for this email");
+      }
     }
     throw new AppError(`Failed to create Firebase account: ${error instanceof Error ? error.message : "unknown error"}`, 502, "AUTH_PROVISION_FAILED");
   }
