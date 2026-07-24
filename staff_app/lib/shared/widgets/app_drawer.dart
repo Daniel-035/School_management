@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme.dart';
-import '../../data/models.dart';
 import '../../data/school_repository.dart';
 
 class StaffAppDrawer extends StatelessWidget {
@@ -146,7 +144,7 @@ class StaffAppDrawer extends StatelessWidget {
   }
 
   static void _showSupportDialog(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Row(
@@ -156,36 +154,26 @@ class StaffAppDrawer extends StatelessWidget {
             Text('Staff Support & Help'),
           ],
         ),
-        content: Column(
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Need assistance with class assignments, attendance, or grading?',
               style: TextStyle(fontSize: 14),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.email_outlined, color: AppColors.primary),
-              title: const Text('IT & Staff Support'),
-              subtitle: const Text('staff-support@school.local'),
-              onTap: () {
-                launchUrl(Uri(
-                  scheme: 'mailto',
-                  path: 'staff-support@school.local',
-                  query: 'subject=Staff Portal Help Request',
-                ));
-              },
+              leading: Icon(Icons.email_outlined, color: AppColors.primary),
+              title: Text('IT & Staff Support'),
+              subtitle: Text('staff-support@school.local'),
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.phone_outlined, color: AppColors.success),
-              title: const Text('Admin Office Desk'),
-              subtitle: const Text('+1 (800) 555-0190 (Ext. 402)'),
-              onTap: () {
-                launchUrl(Uri(scheme: 'tel', path: '+18005550190'));
-              },
+              leading: Icon(Icons.phone_outlined, color: AppColors.success),
+              title: Text('Admin Office Desk'),
+              subtitle: Text('+1 (800) 555-0190 (Ext. 402)'),
             ),
           ],
         ),
@@ -200,7 +188,7 @@ class StaffAppDrawer extends StatelessWidget {
   }
 
   static void _showFaqDialog(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Row(

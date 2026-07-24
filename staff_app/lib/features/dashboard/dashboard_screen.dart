@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:staff_app/core/router.dart';
 import 'package:staff_app/core/theme.dart';
 import 'package:staff_app/data/models.dart';
+import '../../data/school_repository.dart';
 import '../../shared/widgets/app_drawer.dart';
 
 class DashboardScreen extends StatelessWidget {

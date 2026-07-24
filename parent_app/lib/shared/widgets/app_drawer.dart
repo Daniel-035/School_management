@@ -159,14 +159,14 @@ class AppDrawer extends ConsumerWidget {
   }
 
   static void _showSupportDialog(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.support_agent_rounded, color: AppColors.primary),
-            SizedBox(width: 10),
-            Text('Support & Help'),
+            Icon(Icons.support_agent_rounded, color: Theme.of(ctx).colorScheme.primary),
+            const SizedBox(width: 10),
+            const Text('Support & Help'),
           ],
         ),
         content: Column(
@@ -180,7 +180,7 @@ class AppDrawer extends ConsumerWidget {
             const SizedBox(height: 16),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.email_outlined, color: AppColors.primary),
+              leading: Icon(Icons.email_outlined, color: Theme.of(ctx).colorScheme.primary),
               title: const Text('Email Support'),
               subtitle: const Text('support@schoolcompanion.app'),
               onTap: () {
@@ -213,14 +213,14 @@ class AppDrawer extends ConsumerWidget {
   }
 
   static void _showFaqDialog(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.quiz_rounded, color: AppColors.primary),
-            SizedBox(width: 10),
-            Text('F&Q (FAQ)'),
+            Icon(Icons.quiz_rounded, color: Theme.of(ctx).colorScheme.primary),
+            const SizedBox(width: 10),
+            const Text('F&Q (FAQ)'),
           ],
         ),
         content: SizedBox(
