@@ -11,8 +11,9 @@ export interface CreateAnnouncementInput {
 
 export const announcementService = {
   async getAll(): Promise<Announcement[]> {
-    const result = await api.get<{ announcements: Announcement[] }>("/announcements");
-    return result.announcements;
+    const result = await api.get<{ announcements: Announcement[] } | Announcement[]>("/announcements");
+    if (Array.isArray(result)) return result;
+    return result?.announcements || [];
   },
 
   async create(payload: CreateAnnouncementInput): Promise<Announcement> {
@@ -27,8 +28,9 @@ export const announcementService = {
 
 export const calendarService = {
   async getEvents(): Promise<CalendarEvent[]> {
-    const result = await api.get<{ events: CalendarEvent[] }>("/events");
-    return result.events;
+    const result = await api.get<{ events: CalendarEvent[] } | CalendarEvent[]>("/events");
+    if (Array.isArray(result)) return result;
+    return result?.events || [];
   },
 
   async createEvent(payload: Omit<CalendarEvent, "id" | "createdAt" | "updatedAt">): Promise<CalendarEvent> {

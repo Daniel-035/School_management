@@ -44,18 +44,20 @@ export interface CreateStudentPayload {
 
 export const userService = {
   async getAll(): Promise<User[]> {
-    const result = await api.get<{ users: User[] }>("/users");
-    return result.users;
+    const result = await api.get<{ users: User[] } | User[]>("/users");
+    if (Array.isArray(result)) return result;
+    return result?.users || [];
   },
 
   async getByRole(role: UserRole): Promise<User[]> {
-    const result = await api.get<{ users: User[] }>(`/users?role=${role}`);
-    return result.users;
+    const result = await api.get<{ users: User[] } | User[]>(`/users?role=${role}`);
+    if (Array.isArray(result)) return result;
+    return result?.users || [];
   },
 
   async getUser(id: string): Promise<User> {
-    const result = await api.get<{ user: User }>(`/users/${id}`);
-    return result.user;
+    const result = await api.get<{ user: User } | User>(`/users/${id}`);
+    return (result as { user: User })?.user || (result as User);
   },
 
   async createUser(payload: CreateUserPayload): Promise<CreatedUserResult> {
@@ -63,13 +65,14 @@ export const userService = {
   },
 
   async updateUser(id: string, payload: UpdateUserPayload): Promise<User> {
-    const result = await api.put<{ user: User }>(`/users/${id}`, payload);
-    return result.user;
+    const result = await api.put<{ user: User } | User>(`/users/${id}`, payload);
+    return (result as { user: User })?.user || (result as User);
   },
 
   async getStudents(): Promise<Student[]> {
-    const result = await api.get<{ students: Student[] }>("/students");
-    return result.students;
+    const result = await api.get<{ students: Student[] } | Student[]>("/students");
+    if (Array.isArray(result)) return result;
+    return result?.students || [];
   },
 
   async createStudent(payload: CreateStudentPayload): Promise<{ student: Student; username?: string; provisionalPassword?: string }> {

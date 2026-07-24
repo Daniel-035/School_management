@@ -58,20 +58,27 @@ export function DashboardPage() {
     { queryKey: queryKeys.classes, queryFn: academicService.getClasses },
   ] });
 
+  const isInitialLoading = results.some((r) => r.isPending && !r.data);
   const error = results.find((result) => result.error)?.error;
-  if (error) return <ErrorState message={error.message} retry={() => void Promise.all(results.map(result => result.refetch()))} />;
+  if (error) return <ErrorState message={error.message} retry={() => void Promise.all(results.map(r => r.refetch()))} />;
 
-  const [students, staff, announcements, events, summary, classes] = results.map((result) => result.data);
-  const data: DashboardData | null = students && staff && announcements && events && summary && classes ? {
-    students: students as Student[],
-    staff: staff as User[],
-    announcements: announcements as Announcement[],
-    events: events as CalendarEvent[],
-    pendingFees: (summary as Awaited<ReturnType<typeof feeService.getSummary>>).outstanding,
-    classes: classes as { id: string; name: string; grade: string; section: string }[],
-  } : null;
+  const students = (results[0].data ?? []) as Student[];
+  const staff = (results[1].data ?? []) as User[];
+  const announcements = (results[2].data ?? []) as Announcement[];
+  const events = (results[3].data ?? []) as CalendarEvent[];
+  const summary = (results[4].data ?? { totalPaid: 0, outstanding: 0 }) as { totalPaid: number; outstanding: number };
+  const classes = (results[5].data ?? []) as { id: string; name: string; grade: string; section: string }[];
 
-  if (!data) {
+  const data: DashboardData = {
+    students,
+    staff,
+    announcements,
+    events,
+    pendingFees: summary.outstanding ?? 0,
+    classes,
+  };
+
+  if (isInitialLoading) {
     return <SkeletonRows rows={8} />;
   }
 

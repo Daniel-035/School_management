@@ -3,18 +3,23 @@ import { api } from "./api";
 
 export const feeService = {
   async getAll(): Promise<FeePayment[]> {
-    const result = await api.get<{ payments: FeePayment[] }>("/fees/payments");
-    return result.payments;
+    const result = await api.get<{ payments: FeePayment[] } | FeePayment[]>("/fees/payments");
+    if (Array.isArray(result)) return result;
+    return result?.payments || [];
   },
 
   async getStructures(): Promise<FeeStructure[]> {
-    const result = await api.get<{ structures: FeeStructure[] }>("/fees/structures");
-    return result.structures;
+    const result = await api.get<{ structures: FeeStructure[] } | FeeStructure[]>("/fees/structures");
+    if (Array.isArray(result)) return result;
+    return result?.structures || [];
   },
 
   async getSummary(): Promise<FeeSummary> {
-    const result = await api.get<{ summary: FeeSummary }>("/fees/summary");
-    return result.summary;
+    const result = await api.get<{ summary: FeeSummary } | FeeSummary>("/fees/summary");
+    if (result && typeof result === "object" && "summary" in result) {
+      return (result as { summary: FeeSummary }).summary;
+    }
+    return (result as FeeSummary) || { totalPaid: 0, outstanding: 0 };
   },
 
   async createPayment(payload: Pick<FeePayment, "studentId" | "feeStructureId" | "amountDue">): Promise<FeePayment> {

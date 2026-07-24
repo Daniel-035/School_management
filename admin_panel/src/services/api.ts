@@ -171,17 +171,38 @@ apiClient.interceptors.response.use(
 );
 
 export const api = {
-  get: <T>(path: string) => apiClient.get<ApiResponse<T>>(path).then((res: AxiosResponse<ApiResponse<T>>) => res.data.data as T),
+  get: <T>(path: string) =>
+    apiClient.get<ApiResponse<T>>(path).then((res: AxiosResponse<ApiResponse<T>>) => {
+      const body = res.data;
+      if (body && body.data !== undefined) return body.data as T;
+      return (body ?? {}) as T;
+    }),
   post: <T>(path: string, body?: unknown) =>
-    apiClient.post<ApiResponse<T>>(path, body).then((res: AxiosResponse<ApiResponse<T>>) => res.data.data as T),
+    apiClient.post<ApiResponse<T>>(path, body).then((res: AxiosResponse<ApiResponse<T>>) => {
+      const resBody = res.data;
+      if (resBody && resBody.data !== undefined) return resBody.data as T;
+      return (resBody ?? {}) as T;
+    }),
   put: <T>(path: string, body?: unknown) =>
-    apiClient.put<ApiResponse<T>>(path, body).then((res: AxiosResponse<ApiResponse<T>>) => res.data.data as T),
+    apiClient.put<ApiResponse<T>>(path, body).then((res: AxiosResponse<ApiResponse<T>>) => {
+      const resBody = res.data;
+      if (resBody && resBody.data !== undefined) return resBody.data as T;
+      return (resBody ?? {}) as T;
+    }),
   delete: <T>(path: string) =>
-    apiClient.delete<ApiResponse<T>>(path).then((res: AxiosResponse<ApiResponse<T>>) => res.data.data as T),
+    apiClient.delete<ApiResponse<T>>(path).then((res: AxiosResponse<ApiResponse<T>>) => {
+      const resBody = res.data;
+      if (resBody && resBody.data !== undefined) return resBody.data as T;
+      return (resBody ?? {}) as T;
+    }),
   postForm: <T>(path: string, formData: FormData) =>
     apiClient
       .post<ApiResponse<T>>(path, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       })
-      .then((res: AxiosResponse<ApiResponse<T>>) => res.data.data as T),
+      .then((res: AxiosResponse<ApiResponse<T>>) => {
+        const resBody = res.data;
+        if (resBody && resBody.data !== undefined) return resBody.data as T;
+        return (resBody ?? {}) as T;
+      }),
 };
