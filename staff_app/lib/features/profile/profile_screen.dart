@@ -94,17 +94,23 @@ class _StaffProfileCard extends StatelessWidget {
                 CircleAvatar(
                   radius: 32,
                   backgroundColor: AppColors.primary,
-                  child: Text(
-                    staff.avatarInitial ??
-                        (staff.name.isNotEmpty
-                            ? staff.name[0].toUpperCase()
-                            : '?'),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 22,
-                    ),
-                  ),
+                  backgroundImage: (staff.profilePicturePath != null && staff.profilePicturePath!.trim().isNotEmpty)
+                      ? NetworkImage(staff.profilePicturePath!.trim())
+                      : null,
+                  onBackgroundImageError: (_, __) {},
+                  child: (staff.profilePicturePath == null || staff.profilePicturePath!.trim().isEmpty)
+                      ? Text(
+                          staff.avatarInitial ??
+                              (staff.name.isNotEmpty
+                                  ? staff.name[0].toUpperCase()
+                                  : '?'),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 22,
+                          ),
+                        )
+                      : null,
                 ),
                 const SizedBox(width: 16),
                 Expanded(

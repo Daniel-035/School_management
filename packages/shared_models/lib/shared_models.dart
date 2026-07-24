@@ -125,6 +125,8 @@ class Student {
   final String fatherPhone;
   final String motherName;
   final String motherPhone;
+  final String profilePicturePath;
+  final String address;
 
   const Student({
     required this.id,
@@ -146,6 +148,8 @@ class Student {
     this.fatherPhone = '',
     this.motherName = '',
     this.motherPhone = '',
+    this.profilePicturePath = '',
+    this.address = '',
   });
 
   String get initials {
@@ -192,6 +196,8 @@ class Student {
       fatherPhone: (json['fatherPhone'] ?? '').toString(),
       motherName: (json['motherName'] ?? '').toString(),
       motherPhone: (json['motherPhone'] ?? '').toString(),
+      profilePicturePath: (json['profilePicturePath'] ?? json['avatarUrl'] ?? '').toString(),
+      address: (json['address'] ?? '').toString(),
     );
   }
 
@@ -215,6 +221,8 @@ class Student {
         'fatherPhone': fatherPhone,
         'motherName': motherName,
         'motherPhone': motherPhone,
+        'profilePicturePath': profilePicturePath,
+        'address': address,
       };
 }
 

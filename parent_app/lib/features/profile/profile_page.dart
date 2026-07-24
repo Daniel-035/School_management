@@ -197,7 +197,11 @@ class _ParentProfileCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
             child: Row(
               children: [
-                ChildAvatar(initials: _initials(parent.name), size: 64),
+                ChildAvatar(
+                  initials: _initials(parent.name),
+                  size: 64,
+                  imageUrl: parent.avatarUrl,
+                ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
@@ -239,13 +243,42 @@ class _ParentProfileCard extends StatelessWidget {
                 _DetailRow(
                   icon: Icons.alternate_email_rounded,
                   label: 'Email',
-                  value: parent.email,
+                  value: parent.email.isEmpty ? '—' : parent.email,
                 ),
+                if (parent.username != null && parent.username!.isNotEmpty)
+                  _DetailRow(
+                    icon: Icons.person_outline_rounded,
+                    label: 'Username',
+                    value: parent.username!,
+                  ),
                 if (parent.phone != null && parent.phone!.isNotEmpty)
                   _DetailRow(
                     icon: Icons.phone_outlined,
                     label: 'Phone',
                     value: parent.phone!,
+                  ),
+                _DetailRow(
+                  icon: Icons.badge_outlined,
+                  label: 'Account ID',
+                  value: parent.id,
+                ),
+                if (parent.gender != null && parent.gender!.isNotEmpty)
+                  _DetailRow(
+                    icon: Icons.wc_rounded,
+                    label: 'Gender',
+                    value: parent.gender![0].toUpperCase() + parent.gender!.substring(1),
+                  ),
+                if (parent.dateOfBirth != null && parent.dateOfBirth!.isNotEmpty)
+                  _DetailRow(
+                    icon: Icons.cake_outlined,
+                    label: 'Date of birth',
+                    value: parent.dateOfBirth!,
+                  ),
+                if (parent.address != null && parent.address!.isNotEmpty)
+                  _DetailRow(
+                    icon: Icons.location_on_outlined,
+                    label: 'Address',
+                    value: parent.address!,
                   ),
                 _DetailRow(
                   icon: Icons.verified_user_outlined,
@@ -382,7 +415,11 @@ class _ChildDetailCardState extends State<_ChildDetailCard> {
             children: [
               Row(
                 children: [
-                  ChildAvatar(initials: s.initials, size: 48),
+                  ChildAvatar(
+                    initials: s.initials,
+                    size: 48,
+                    imageUrl: s.profilePicturePath,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -445,6 +482,12 @@ class _ChildDetailCardState extends State<_ChildDetailCard> {
                         label: 'Student ID',
                         value: s.id,
                       ),
+                      if (s.username.isNotEmpty)
+                        _DetailRow(
+                          icon: Icons.person_outline_rounded,
+                          label: 'Username',
+                          value: s.username,
+                        ),
                       _DetailRow(
                         icon: Icons.school_rounded,
                         label: 'Class',
@@ -455,11 +498,57 @@ class _ChildDetailCardState extends State<_ChildDetailCard> {
                         label: 'Roll number',
                         value: s.rollNumber.isEmpty ? '—' : s.rollNumber,
                       ),
+                      if (s.email.isNotEmpty)
+                        _DetailRow(
+                          icon: Icons.alternate_email_rounded,
+                          label: 'Email',
+                          value: s.email,
+                        ),
+                      if (s.phone.isNotEmpty)
+                        _DetailRow(
+                          icon: Icons.phone_outlined,
+                          label: 'Phone',
+                          value: s.phone,
+                        ),
+                      if (s.gender.isNotEmpty)
+                        _DetailRow(
+                          icon: Icons.wc_rounded,
+                          label: 'Gender',
+                          value: s.gender[0].toUpperCase() + s.gender.substring(1),
+                        ),
                       if (s.dateOfBirth != null)
                         _DetailRow(
                           icon: Icons.cake_outlined,
                           label: 'Date of birth',
                           value: Formatters.date(s.dateOfBirth!),
+                        ),
+                      if (s.governmentId.isNotEmpty)
+                        _DetailRow(
+                          icon: Icons.subtitles_outlined,
+                          label: 'Government ID',
+                          value: s.governmentId,
+                        ),
+                      if (s.fatherName.isNotEmpty)
+                        _DetailRow(
+                          icon: Icons.man_rounded,
+                          label: 'Father',
+                          value: s.fatherPhone.isNotEmpty
+                              ? '${s.fatherName} (${s.fatherPhone})'
+                              : s.fatherName,
+                        ),
+                      if (s.motherName.isNotEmpty)
+                        _DetailRow(
+                          icon: Icons.woman_rounded,
+                          label: 'Mother',
+                          value: s.motherPhone.isNotEmpty
+                              ? '${s.motherName} (${s.motherPhone})'
+                              : s.motherName,
+                        ),
+                      if (s.address.isNotEmpty)
+                        _DetailRow(
+                          icon: Icons.location_on_outlined,
+                          label: 'Address',
+                          value: s.address,
                         ),
                       _DetailRow(
                         icon: Icons.how_to_reg_rounded,
