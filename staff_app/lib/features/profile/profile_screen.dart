@@ -472,7 +472,7 @@ class _StaffChangePasswordCardState extends State<_StaffChangePasswordCard> {
     setState(() => _loading = true);
     try {
       final repo = Provider.of<SchoolRepository>(context, listen: false);
-      await repo.apiClient.post('/auth/change-password', body: {
+      await repo.api.post('/auth/change-password', body: {
         'currentPassword': current,
         'newPassword': newPass,
       });
